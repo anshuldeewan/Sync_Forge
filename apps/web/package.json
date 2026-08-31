@@ -2,7 +2,9 @@
   "name": "web",
   "version": "0.1.0",
   "private": true,
-  "scripts": {`n    "test": "echo \"No tests specified for web\" && exit 0",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests specified for web\" && exit 0",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
