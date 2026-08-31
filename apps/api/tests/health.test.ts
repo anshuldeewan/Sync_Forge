@@ -1,4 +1,6 @@
 import request from 'supertest';
+
+jest.mock('../src/config/firebase', () => ({ auth: {} }));
 import app from '../src/index';
 
 describe('API Health Check', () => {
