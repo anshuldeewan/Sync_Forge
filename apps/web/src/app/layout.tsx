@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from '../context/AuthContext';
+import { WorkspaceProvider } from '../context/WorkspaceContext';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -27,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          {children}
+          <WorkspaceProvider>
+            {children}
+          </WorkspaceProvider>
         </AuthProvider>
       </body>
     </html>

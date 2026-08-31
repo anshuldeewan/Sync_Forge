@@ -1,0 +1,104 @@
+import { Response, NextFunction } from 'express';
+import { AuthenticatedRequest } from './auth';
+import prisma from '@syncforge/db';
+import { Role } from '@syncforge/db';
+
+export enum WorkspaceAction {
+  UPDATE_WORKSPACE = 'UPDATE_WORKSPACE',
+  DELETE_WORKSPACE = 'DELETE_WORKSPACE',
+  READ_WORKSPACE = 'READ_WORKSPACE',
+  MANAGE_MEMBERS = 'MANAGE_MEMBERS',
+  MANAGE_INVITATIONS = 'MANAGE_INVITATIONS',
+  MANAGE_PROJECTS = 'MANAGE_PROJECTS',
+  READ_PROJECTS = 'READ_PROJECTS'
+}
+
+const RolePermissions: Record<Role, WorkspaceAction[]> = {
+  [Role.OWNER]: [
+    WorkspaceAction.UPDATE_WORKSPACE,
+    WorkspaceAction.DELETE_WORKSPACE,
+    WorkspaceAction.READ_WORKSPACE,
+    WorkspaceAction.MANAGE_MEMBERS,
+    WorkspaceAction.MANAGE_INVITATIONS,
+    WorkspaceAction.MANAGE_PROJECTS,
+    WorkspaceAction.READ_PROJECTS,
+  ],
+  [Role.ADMIN]: [
+    WorkspaceAction.UPDATE_WORKSPACE,
+    WorkspaceAction.READ_WORKSPACE,
+    WorkspaceAction.MANAGE_MEMBERS,
+    WorkspaceAction.MANAGE_INVITATIONS,
+    WorkspaceAction.MANAGE_PROJECTS,
+    WorkspaceAction.READ_PROJECTS,
+  ],
+  [Role.EDITOR]: [
+    WorkspaceAction.READ_WORKSPACE,
+    WorkspaceAction.MANAGE_PROJECTS,
+    WorkspaceAction.READ_PROJECTS,
+  ],
+  [Role.VIEWER]: [
+    WorkspaceAction.READ_WORKSPACE,
+    WorkspaceAction.READ_PROJECTS,
+  ]
+};
+
+export const hasPermission = (role: Role, action: WorkspaceAction): boolean => {
+  return RolePermissions[role].includes(action);
+};
+
+export interface AuthorizedRequest extends AuthenticatedRequest {
+  workspaceMember?: {
+    workspaceId: string;
+    userId: string;
+    role: Role;
+  };
+}
+
+export const requirePermission = (action: WorkspaceAction) => {
+  return async (req: AuthorizedRequest, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Not authenticated.' } });
+    }
+
+    // Attempt to extract workspaceId from params, then body, then query
+    const workspaceId = req.params.workspaceId || req.body.workspaceId || req.query.workspaceId;
+    if (!workspaceId || typeof workspaceId !== 'string') {
+      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Missing workspaceId.' } });
+    }
+
+    try {
+      const member = await prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId,
+            userId: user.id
+          }
+        },
+        include: {
+          workspace: true
+        }
+      });
+
+      if (!member || member.workspace.isDeleted) {
+        // Return 404 to avoid leaking existence of a workspace the user doesn't belong to
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Workspace not found.' } });
+      }
+
+      if (!hasPermission(member.role, action)) {
+        return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' } });
+      }
+
+      req.workspaceMember = {
+        workspaceId: member.workspaceId,
+        userId: member.userId,
+        role: member.role
+      };
+
+      next();
+    } catch (error) {
+      console.error('RBAC Error:', error);
+      return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred during authorization.' } });
+    }
+  };
+};

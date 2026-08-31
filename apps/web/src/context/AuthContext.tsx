@@ -31,7 +31,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Sync user with backend
         try {
           const token = await firebaseUser.getIdToken();
-          await fetch('http://localhost:3001/api/auth/sync', {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+          await fetch(`${apiUrl}/api/auth/sync`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`

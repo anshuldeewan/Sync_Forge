@@ -21,6 +21,39 @@ app.get('/api/protected', requireAuth, (req: any, res: any) => {
   res.json({ status: 'ok', user: req.user });
 });
 
+import { createWorkspace, listWorkspaces, getWorkspace, updateWorkspace, deleteWorkspace } from './controllers/workspace';
+import { listMembers, updateMemberRole, removeMember } from './controllers/member';
+import { requirePermission, WorkspaceAction } from './middleware/rbac';
+
+// Workspace Routes
+app.post('/api/workspaces', requireAuth, createWorkspace);
+app.get('/api/workspaces', requireAuth, listWorkspaces);
+app.get('/api/workspaces/:workspaceId', requireAuth, requirePermission(WorkspaceAction.READ_WORKSPACE), getWorkspace);
+app.patch('/api/workspaces/:workspaceId', requireAuth, requirePermission(WorkspaceAction.UPDATE_WORKSPACE), updateWorkspace);
+app.delete('/api/workspaces/:workspaceId', requireAuth, requirePermission(WorkspaceAction.DELETE_WORKSPACE), deleteWorkspace);
+
+// Member Routes
+app.get('/api/workspaces/:workspaceId/members', requireAuth, requirePermission(WorkspaceAction.READ_WORKSPACE), listMembers);
+app.patch('/api/workspaces/:workspaceId/members/:userId', requireAuth, requirePermission(WorkspaceAction.MANAGE_MEMBERS), updateMemberRole);
+app.delete('/api/workspaces/:workspaceId/members/:userId', requireAuth, requirePermission(WorkspaceAction.MANAGE_MEMBERS), removeMember);
+
+import { createInvitation, listInvitations, revokeInvitation, acceptInvitation } from './controllers/invitation';
+
+// Invitation Routes
+app.post('/api/workspaces/:workspaceId/invitations', requireAuth, requirePermission(WorkspaceAction.MANAGE_INVITATIONS), createInvitation);
+app.get('/api/workspaces/:workspaceId/invitations', requireAuth, requirePermission(WorkspaceAction.MANAGE_INVITATIONS), listInvitations);
+app.delete('/api/workspaces/:workspaceId/invitations/:id', requireAuth, requirePermission(WorkspaceAction.MANAGE_INVITATIONS), revokeInvitation);
+app.post('/api/invitations/accept', requireAuth, acceptInvitation);
+
+import { createProject, listProjects, getProject, updateProject, deleteProject } from './controllers/project';
+
+// Project Routes
+app.post('/api/workspaces/:workspaceId/projects', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), createProject);
+app.get('/api/workspaces/:workspaceId/projects', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), listProjects);
+app.get('/api/workspaces/:workspaceId/projects/:projectId', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), getProject);
+app.patch('/api/workspaces/:workspaceId/projects/:projectId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), updateProject);
+app.delete('/api/workspaces/:workspaceId/projects/:projectId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), deleteProject);
+
 if (require.main === module) {
   app.listen(port, () => {
     console.log(`API Server listening on port ${port}`);
