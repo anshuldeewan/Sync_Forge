@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../context/AuthContext';
 import { useWorkspace } from '../../../../context/WorkspaceContext';
 
-export default function WorkspaceSettings({ params }: { params: { workspaceId: string } }) {
+export default function WorkspaceSettings() {
+  const params = useParams();
+  const workspaceId = params.workspaceId as string;
   const { user } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const router = useRouter();
@@ -19,11 +21,11 @@ export default function WorkspaceSettings({ params }: { params: { workspaceId: s
   const [success, setSuccess] = useState('');
   const [inviteLink, setInviteLink] = useState('');
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     if (!user) return null;
     const token = await user.getIdToken();
+    const { getApiUrl } = await import('../../../../config/api');
+    const apiUrl = getApiUrl();
     return fetch(`${apiUrl}${url}`, {
       ...options,
       headers: { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -33,8 +35,8 @@ export default function WorkspaceSettings({ params }: { params: { workspaceId: s
   const loadData = async () => {
     try {
       const [membersRes, invitesRes] = await Promise.all([
-        fetchWithAuth(`/api/workspaces/${params.workspaceId}/members`),
-        fetchWithAuth(`/api/workspaces/${params.workspaceId}/invitations`)
+        fetchWithAuth(`/api/workspaces/${workspaceId}/members`),
+        fetchWithAuth(`/api/workspaces/${workspaceId}/invitations`)
       ]);
 
       if (membersRes?.ok) {
@@ -54,13 +56,13 @@ export default function WorkspaceSettings({ params }: { params: { workspaceId: s
 
   useEffect(() => {
     if (user && activeWorkspace) {
-      if (activeWorkspace.id !== params.workspaceId) {
+      if (activeWorkspace.id !== workspaceId) {
         router.push('/');
       } else {
         loadData();
       }
     }
-  }, [user, activeWorkspace]);
+  }, [user, activeWorkspace, workspaceId, router]);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +71,7 @@ export default function WorkspaceSettings({ params }: { params: { workspaceId: s
     setInviteLink('');
 
     try {
-      const res = await fetchWithAuth(`/api/workspaces/${params.workspaceId}/invitations`, {
+      const res = await fetchWithAuth(`/api/workspaces/${workspaceId}/invitations`, {
         method: 'POST',
         body: JSON.stringify({ email: inviteEmail, role: inviteRole })
       });
@@ -88,7 +90,7 @@ export default function WorkspaceSettings({ params }: { params: { workspaceId: s
 
   const removeMember = async (userId: string) => {
     try {
-      const res = await fetchWithAuth(`/api/workspaces/${params.workspaceId}/members/${userId}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`/api/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' });
       if (!res!.ok) {
         const data = await res!.json();
         alert(data.error?.message || 'Failed to remove member');

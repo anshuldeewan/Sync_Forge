@@ -28,7 +28,8 @@ export default function NewProject() {
 
     try {
       const token = await user?.getIdToken();
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const { getApiUrl } = await import('../../../../../config/api');
+      const apiUrl = getApiUrl();
 
       const res = await fetch(`${apiUrl}/api/workspaces/${params.workspaceId}/projects`, {
         method: 'POST',

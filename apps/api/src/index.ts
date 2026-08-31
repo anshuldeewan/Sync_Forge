@@ -46,6 +46,10 @@ app.delete('/api/workspaces/:workspaceId/invitations/:id', requireAuth, requireP
 app.post('/api/invitations/accept', requireAuth, acceptInvitation);
 
 import { createProject, listProjects, getProject, updateProject, deleteProject } from './controllers/project';
+import multer from 'multer';
+import { uploadFile, listFiles, downloadFile, deleteFile } from './controllers/file';
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Project Routes
 app.post('/api/workspaces/:workspaceId/projects', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), createProject);
@@ -53,6 +57,23 @@ app.get('/api/workspaces/:workspaceId/projects', requireAuth, requirePermission(
 app.get('/api/workspaces/:workspaceId/projects/:projectId', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), getProject);
 app.patch('/api/workspaces/:workspaceId/projects/:projectId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), updateProject);
 app.delete('/api/workspaces/:workspaceId/projects/:projectId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), deleteProject);
+
+// File Routes
+app.post('/api/workspaces/:workspaceId/projects/:projectId/files', requireAuth, requirePermission(WorkspaceAction.MANAGE_FILES), upload.single('file'), uploadFile as any);
+app.get('/api/workspaces/:workspaceId/projects/:projectId/files', requireAuth, requirePermission(WorkspaceAction.READ_FILES), listFiles);
+app.get('/api/workspaces/:workspaceId/projects/:projectId/files/:fileId', requireAuth, requirePermission(WorkspaceAction.READ_FILES), downloadFile);
+app.delete('/api/workspaces/:workspaceId/projects/:projectId/files/:fileId', requireAuth, requirePermission(WorkspaceAction.MANAGE_FILES), deleteFile);
+
+import { createPage, listPages, getPage, updatePage, deletePage, getCollaborationToken } from './controllers/page';
+
+// Page Routes
+app.post('/api/workspaces/:workspaceId/projects/:projectId/pages', requireAuth, requirePermission(WorkspaceAction.MANAGE_PAGES), createPage);
+app.get('/api/workspaces/:workspaceId/projects/:projectId/pages', requireAuth, requirePermission(WorkspaceAction.READ_PAGES), listPages);
+app.get('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId', requireAuth, requirePermission(WorkspaceAction.READ_PAGES), getPage);
+app.patch('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PAGES), updatePage);
+app.delete('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PAGES), deletePage);
+app.get('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId/token', requireAuth, requirePermission(WorkspaceAction.READ_PAGES), getCollaborationToken);
+
 
 if (require.main === module) {
   app.listen(port, () => {

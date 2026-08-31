@@ -11,10 +11,18 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tiptap/extension-collaboration": "^2.26.2",
+    "@tiptap/extension-collaboration-cursor": "^2.26.2",
+    "@tiptap/pm": "^2.26.2",
+    "@tiptap/react": "^2.26.2",
+    "@tiptap/starter-kit": "^2.26.2",
     "firebase": "^12.18.0",
+    "lucide-react": "^1.37.0",
     "next": "16.3.3",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "y-websocket": "^2.1.0",
+    "yjs": "^13.6.32"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -30,7 +30,14 @@ export const syncUser = async (req: Request, res: Response) => {
     });
 
     return res.status(200).json({ user: dbUser });
-  } catch (error) {
-    return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token.' } });
+  } catch (error: any) {
+    console.error('Token verification or sync failed:', error);
+    
+    // Check if it's a Prisma error or Firebase error
+    if (error.code && typeof error.code === 'string' && error.code.startsWith('auth/')) {
+      return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token.', details: error.message } });
+    }
+    
+    return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred during user sync.' } });
   }
 };

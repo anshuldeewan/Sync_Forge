@@ -10,7 +10,11 @@ export enum WorkspaceAction {
   MANAGE_MEMBERS = 'MANAGE_MEMBERS',
   MANAGE_INVITATIONS = 'MANAGE_INVITATIONS',
   MANAGE_PROJECTS = 'MANAGE_PROJECTS',
-  READ_PROJECTS = 'READ_PROJECTS'
+  READ_PROJECTS = 'READ_PROJECTS',
+  MANAGE_FILES = 'MANAGE_FILES',
+  READ_FILES = 'READ_FILES',
+  MANAGE_PAGES = 'MANAGE_PAGES',
+  READ_PAGES = 'READ_PAGES'
 }
 
 const RolePermissions: Record<Role, WorkspaceAction[]> = {
@@ -22,6 +26,10 @@ const RolePermissions: Record<Role, WorkspaceAction[]> = {
     WorkspaceAction.MANAGE_INVITATIONS,
     WorkspaceAction.MANAGE_PROJECTS,
     WorkspaceAction.READ_PROJECTS,
+    WorkspaceAction.MANAGE_FILES,
+    WorkspaceAction.READ_FILES,
+    WorkspaceAction.MANAGE_PAGES,
+    WorkspaceAction.READ_PAGES,
   ],
   [Role.ADMIN]: [
     WorkspaceAction.UPDATE_WORKSPACE,
@@ -30,15 +38,25 @@ const RolePermissions: Record<Role, WorkspaceAction[]> = {
     WorkspaceAction.MANAGE_INVITATIONS,
     WorkspaceAction.MANAGE_PROJECTS,
     WorkspaceAction.READ_PROJECTS,
+    WorkspaceAction.MANAGE_FILES,
+    WorkspaceAction.READ_FILES,
+    WorkspaceAction.MANAGE_PAGES,
+    WorkspaceAction.READ_PAGES,
   ],
   [Role.EDITOR]: [
     WorkspaceAction.READ_WORKSPACE,
     WorkspaceAction.MANAGE_PROJECTS,
     WorkspaceAction.READ_PROJECTS,
+    WorkspaceAction.MANAGE_FILES,
+    WorkspaceAction.READ_FILES,
+    WorkspaceAction.MANAGE_PAGES,
+    WorkspaceAction.READ_PAGES,
   ],
   [Role.VIEWER]: [
     WorkspaceAction.READ_WORKSPACE,
     WorkspaceAction.READ_PROJECTS,
+    WorkspaceAction.READ_FILES,
+    WorkspaceAction.READ_PAGES,
   ]
 };
 

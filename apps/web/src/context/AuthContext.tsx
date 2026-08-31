@@ -28,19 +28,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        // Sync user with backend
-        try {
-          const token = await firebaseUser.getIdToken();
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-          await fetch(`${apiUrl}/api/auth/sync`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`
+          // Sync user with backend
+          try {
+            const token = await firebaseUser.getIdToken(true);
+            const { getApiUrl } = await import('../config/api');
+            const apiUrl = getApiUrl();
+            const res = await fetch(`${apiUrl}/api/auth/sync`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            if (!res.ok) {
+              console.error('Failed to sync user with backend:', await res.text());
+              if (res.status === 401) {
+                // Token is invalid/expired or from a different project. Clear stale session.
+                await firebaseSignOut(auth);
+                setUser(null);
+              }
             }
-          });
-        } catch (error) {
-          console.error("Failed to sync user with backend:", error);
-        }
+          } catch (error: any) {
+            console.error("Network error: API server is unreachable at api/auth/sync:", error);
+            alert('Cannot connect to the backend server. Please make sure the API is running.');
+          }
       } else {
         setUser(null);
       }

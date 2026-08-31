@@ -9,12 +9,19 @@ jest.mock('../src/config/firebase', () => ({
   },
 }));
 
-jest.mock('@syncforge/db', () => ({
-  user: {
-    findUnique: jest.fn(),
-    upsert: jest.fn(),
-  },
-}));
+jest.mock('@syncforge/db', () => {
+  const original = jest.requireActual('@syncforge/db');
+  return {
+    __esModule: true,
+    ...original,
+    default: {
+      user: {
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+      }
+    }
+  };
+});
 
 describe('Auth Endpoints & Middleware', () => {
   afterEach(() => {

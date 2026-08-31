@@ -17,6 +17,7 @@ interface WorkspaceContextType {
   loading: boolean;
   switchWorkspace: (workspaceId: string) => void;
   refreshWorkspaces: () => Promise<void>;
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -31,15 +32,24 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     if (!user) throw new Error('Not authenticated');
     const token = await user.getIdToken();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const { getApiUrl } = await import('../config/api');
+    const apiUrl = getApiUrl();
     
+    // Only set Content-Type to JSON if it hasn't been explicitly unset (e.g. for FormData)
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      ...((options.headers as any) || {})
+    };
+
+    if (headers['Content-Type'] === undefined && !('Content-Type' in ((options.headers || {}) as any))) {
+       headers['Content-Type'] = 'application/json';
+    } else if (headers['Content-Type'] === 'undefined' || headers['Content-Type'] === undefined) {
+       delete headers['Content-Type'];
+    }
+
     return fetch(`${apiUrl}${url}`, {
       ...options,
-      headers: {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers
     });
   };
 
@@ -108,7 +118,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <WorkspaceContext.Provider value={{ workspaces, activeWorkspace, loading, switchWorkspace, refreshWorkspaces }}>
+    <WorkspaceContext.Provider value={{ workspaces, activeWorkspace, loading, switchWorkspace, refreshWorkspaces, fetchWithAuth }}>
       {children}
     </WorkspaceContext.Provider>
   );

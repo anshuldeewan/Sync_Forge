@@ -33,12 +33,19 @@ export default function Home() {
           {workspaces.length > 0 && (
             <select 
               value={activeWorkspace?.id || ''} 
-              onChange={(e) => switchWorkspace(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === 'new_workspace_action') {
+                  router.push('/workspaces/new');
+                } else {
+                  switchWorkspace(e.target.value);
+                }
+              }}
               className="ml-4 rounded border-gray-300 dark:border-zinc-700 bg-transparent text-sm py-1 px-2"
             >
               {workspaces.map(ws => (
                 <option key={ws.id} value={ws.id}>{ws.name}</option>
               ))}
+              <option value="new_workspace_action">+ New Workspace</option>
             </select>
           )}
         </div>
@@ -89,7 +96,11 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeWorkspace.projects && activeWorkspace.projects.length > 0 ? (
                 activeWorkspace.projects.map((project: any) => (
-                  <div key={project.id} className="border border-gray-200 dark:border-zinc-800 rounded p-4 bg-white dark:bg-black shadow-sm cursor-pointer hover:border-blue-500">
+                  <div 
+                    key={project.id} 
+                    onClick={() => router.push(`/workspaces/${activeWorkspace.id}/projects/${project.id}`)}
+                    className="border border-gray-200 dark:border-zinc-800 rounded p-4 bg-white dark:bg-black shadow-sm cursor-pointer hover:border-blue-500"
+                  >
                     <h3 className="font-medium text-lg">{project.name}</h3>
                     <p className="text-sm text-gray-500 mt-2">Created {new Date(project.createdAt).toLocaleDateString()}</p>
                   </div>
