@@ -3,6 +3,7 @@ import { AuthorizedRequest } from '../middleware/rbac';
 import prisma from '@syncforge/db';
 import { ResourceType } from '@syncforge/db';
 import { LocalStorageProvider } from '../services/storage/LocalStorageProvider';
+import { extractZipToResources } from '../services/zip/extractor';
 import { randomUUID } from 'crypto';
 import path from 'path';
 
@@ -41,6 +42,32 @@ export const safeUploadResource = async (req: AuthorizedRequest, res: Response) 
       }
     }
 
+    // IDOR / RBAC Check: Ensure projectId genuinely belongs to workspaceId
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, workspaceId, isDeleted: false }
+    });
+    if (!project) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Project not found in this workspace.' } });
+    }
+
+    // --- ZIP EXTRACTION FLOW ---
+    if (ext === '.zip' && req.query.extract === 'true') {
+      try {
+        const result = await extractZipToResources(
+          file.buffer,
+          workspaceId,
+          projectId,
+          req.user!.id,
+          parentId
+        );
+        return res.status(201).json({ resource: result.rootResources[0], extracted: true, resources: result.rootResources }); // Returning the first root resource for compatibility or the whole list
+      } catch (zipErr: any) {
+        console.error('ZIP Extraction failed:', zipErr);
+        return res.status(400).json({ error: { code: 'BAD_REQUEST', message: zipErr.message || 'Failed to extract ZIP file.' } });
+      }
+    }
+
+    // --- STANDARD FILE UPLOAD FLOW ---
     const existing = await prisma.resource.findFirst({
       where: {
         projectId,

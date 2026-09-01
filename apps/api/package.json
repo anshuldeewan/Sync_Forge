@@ -18,6 +18,7 @@
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.3.0",
+    "yauzl": "^3.4.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -27,7 +28,9 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.2.0",
     "@types/supertest": "^7.2.1",
+    "@types/yauzl": "^3.4.0",
     "jest": "^30.5.0",
+    "jszip": "^3.10.1",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.12",
     "ts-node-dev": "^2.0.0",

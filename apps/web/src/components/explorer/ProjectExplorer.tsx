@@ -5,6 +5,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useRouter } from 'next/navigation';
 import { Folder, FolderOpen, FileText, File as FileIcon, MoreVertical, Edit2, Trash2, ChevronRight, ChevronDown, Upload, Download, FileCode, ImageIcon, FileVideo, FileAudio, FileArchive } from 'lucide-react';
 import { getFileCategory, FileCategory } from '../../utils/fileTypes';
+import { ZipUploadModal } from './ZipUploadModal';
 
 interface Resource {
   id: string;
@@ -61,6 +62,9 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
   
   // Drag and Drop
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  // Zip Upload intercept
+  const [pendingZipUpload, setPendingZipUpload] = useState<{ file: globalThis.File, parentId: string | null } | null>(null);
 
   const fetchResources = async () => {
     try {
@@ -169,14 +173,26 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
     }
   };
 
-  const handleUpload = async (file: globalThis.File, parentId: string | null) => {
+  const handleUpload = (file: globalThis.File, parentId: string | null) => {
+    if (file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed') {
+      setPendingZipUpload({ file, parentId });
+    } else {
+      processUpload(file, parentId, false);
+    }
+  };
+
+  const processUpload = async (file: globalThis.File, parentId: string | null, extract: boolean) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
       
-      const url = parentId 
+      let url = parentId 
         ? `/api/workspaces/${workspaceId}/projects/${projectId}/resources/${parentId}/upload`
         : `/api/workspaces/${workspaceId}/projects/${projectId}/resources/upload`;
+        
+      if (extract) {
+        url += '?extract=true';
+      }
         
       const res = await fetchWithAuth(url, {
         method: 'POST',
@@ -193,6 +209,8 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
       }
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setPendingZipUpload(null);
     }
   };
 
@@ -537,6 +555,14 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
           )}
         </div>
       )}
+
+      <ZipUploadModal
+        isOpen={!!pendingZipUpload}
+        filename={pendingZipUpload?.file.name || ''}
+        onClose={() => setPendingZipUpload(null)}
+        onExtract={() => processUpload(pendingZipUpload!.file, pendingZipUpload!.parentId, true)}
+        onUploadAsFile={() => processUpload(pendingZipUpload!.file, pendingZipUpload!.parentId, false)}
+      />
     </div>
   );
 }
