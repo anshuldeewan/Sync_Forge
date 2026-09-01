@@ -18,6 +18,7 @@ jest.mock('@syncforge/db', () => {
       user: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
+        create: jest.fn(),
       }
     }
   };
@@ -49,13 +50,23 @@ describe('Auth Endpoints & Middleware', () => {
       expect(res.body.error.message).toBe('Invalid or expired token.');
     });
 
-    it('should return 401 if user not in database', async () => {
-      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: 'user-1' });
+    it('should auto-create user and allow access if Firebase token is valid but user not in database', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: 'new-user', email: 'new@test.com' });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.user.create as jest.Mock).mockResolvedValue({ id: 'new-user', email: 'new@test.com' });
+
+      const res = await request(app).get('/api/protected').set('Authorization', 'Bearer valid-token');
+      expect(res.status).toBe(200);
+      expect(prisma.user.create).toHaveBeenCalled();
+    });
+
+    it('should return 401 if user not in database and token lacks email', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: 'user-no-email' }); // no email
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
       const res = await request(app).get('/api/protected').set('Authorization', 'Bearer valid-token');
       expect(res.status).toBe(401);
-      expect(res.body.error.message).toBe('User record not found in database. Please sync.');
+      expect(res.body.error.message).toBe('Firebase token missing email.');
     });
 
     it('should allow access to protected route with valid token and existing user', async () => {

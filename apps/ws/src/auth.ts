@@ -7,7 +7,8 @@ export interface CollaborationTokenPayload {
   userId: string;
   workspaceId: string;
   projectId: string;
-  pageId: string;
+  pageId?: string;
+  resourceId?: string;
   role: string;
   purpose: string;
   iat?: number;

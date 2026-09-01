@@ -8,5 +8,8 @@
     "test": "pnpm --recursive test",
     "lint": "pnpm --recursive run lint",
     "typecheck": "pnpm --recursive run typecheck"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

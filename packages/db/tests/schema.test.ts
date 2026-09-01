@@ -4,7 +4,6 @@ const prisma = new PrismaClient();
 
 describe('Database Schema Verification', () => {
   beforeAll(async () => {
-    // Ensure DB is clean before tests
     await prisma.auditLog.deleteMany();
     await prisma.fileAsset.deleteMany();
     await prisma.issue.deleteMany();

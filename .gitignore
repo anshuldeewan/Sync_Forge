@@ -1,10 +1,22 @@
 node_modules/
 dist/
 build/
-.env
-.env.*.local
+.env*
+!.env.example
 *.pem
 *.key
 .next/
 coverage/
 .DS_Store
+
+# SyncForge specific ignores
+apps/api/storage/
+e2e-results/
+playwright-report/
+test-results/
+scratch/
+test_*.ts
+temp-*.js
+list_*.ts
+clean_dev_db.ts
+e2e_test.ts

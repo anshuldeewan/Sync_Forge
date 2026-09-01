@@ -56,7 +56,30 @@ app.post('/api/workspaces/:workspaceId/projects', requireAuth, requirePermission
 app.get('/api/workspaces/:workspaceId/projects', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), listProjects);
 app.get('/api/workspaces/:workspaceId/projects/:projectId', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), getProject);
 app.patch('/api/workspaces/:workspaceId/projects/:projectId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), updateProject);
-app.delete('/api/workspaces/:workspaceId/projects/:projectId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), deleteProject);
+app.delete('/api/workspaces/:workspaceId/projects/:projectId', requireAuth, requirePermission(WorkspaceAction.DELETE_PROJECT), deleteProject);
+
+import { listResources, createResource, updateResource, deleteResource, getCollaborationToken as getResourceToken } from './controllers/resource';
+import { safeUploadResource, downloadResource } from './controllers/resourceUpload';
+
+// Resource Routes
+app.get('/api/workspaces/:workspaceId/projects/:projectId/resources', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), listResources);
+app.post('/api/workspaces/:workspaceId/projects/:projectId/resources', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), createResource);
+app.patch('/api/workspaces/:workspaceId/projects/:projectId/resources/:id', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), updateResource);
+app.delete('/api/workspaces/:workspaceId/projects/:projectId/resources/:id', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), deleteResource);
+app.get('/api/workspaces/:workspaceId/projects/:projectId/resources/:id/token', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), getResourceToken);
+
+import { listRevisions, getRevision, restoreRevision, createRevision } from './controllers/revision';
+
+// Revision Routes
+app.get('/api/workspaces/:workspaceId/projects/:projectId/resources/:resourceId/revisions', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), listRevisions);
+app.post('/api/workspaces/:workspaceId/projects/:projectId/resources/:resourceId/revisions', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), createRevision);
+app.get('/api/workspaces/:workspaceId/projects/:projectId/resources/:resourceId/revisions/:versionId', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), getRevision);
+app.post('/api/workspaces/:workspaceId/projects/:projectId/resources/:resourceId/revisions/:versionId/restore', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), restoreRevision);
+
+// Resource File Upload/Download
+app.post('/api/workspaces/:workspaceId/projects/:projectId/resources/upload', requireAuth, requirePermission(WorkspaceAction.MANAGE_FILES), upload.single('file'), safeUploadResource as any);
+app.post('/api/workspaces/:workspaceId/projects/:projectId/resources/:parentId/upload', requireAuth, requirePermission(WorkspaceAction.MANAGE_FILES), upload.single('file'), safeUploadResource as any);
+app.get('/api/workspaces/:workspaceId/projects/:projectId/resources/:resourceId/download', requireAuth, requirePermission(WorkspaceAction.READ_FILES), downloadResource as any);
 
 // File Routes
 app.post('/api/workspaces/:workspaceId/projects/:projectId/files', requireAuth, requirePermission(WorkspaceAction.MANAGE_FILES), upload.single('file'), uploadFile as any);
@@ -65,6 +88,7 @@ app.get('/api/workspaces/:workspaceId/projects/:projectId/files/:fileId', requir
 app.delete('/api/workspaces/:workspaceId/projects/:projectId/files/:fileId', requireAuth, requirePermission(WorkspaceAction.MANAGE_FILES), deleteFile);
 
 import { createPage, listPages, getPage, updatePage, deletePage, getCollaborationToken } from './controllers/page';
+import { listComments, createComment, updateComment, deleteComment } from './controllers/comment';
 
 // Page Routes
 app.post('/api/workspaces/:workspaceId/projects/:projectId/pages', requireAuth, requirePermission(WorkspaceAction.MANAGE_PAGES), createPage);
@@ -73,6 +97,12 @@ app.get('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId', requir
 app.patch('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PAGES), updatePage);
 app.delete('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PAGES), deletePage);
 app.get('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId/token', requireAuth, requirePermission(WorkspaceAction.READ_PAGES), getCollaborationToken);
+
+// Comment Routes
+app.get('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId/comments', requireAuth, requirePermission(WorkspaceAction.READ_PAGES), listComments);
+app.post('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId/comments', requireAuth, requirePermission(WorkspaceAction.READ_PAGES), createComment);
+app.patch('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId/comments/:commentId', requireAuth, requirePermission(WorkspaceAction.READ_PAGES), updateComment);
+app.delete('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId/comments/:commentId', requireAuth, requirePermission(WorkspaceAction.READ_PAGES), deleteComment);
 
 
 if (require.main === module) {

@@ -61,8 +61,9 @@ export default function NewWorkspace() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Workspace Name</label>
+            <label htmlFor="workspaceName" className="block text-sm font-medium mb-1">Workspace Name</label>
             <input
+              id="workspaceName"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}

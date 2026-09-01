@@ -14,6 +14,7 @@ interface Workspace {
 interface WorkspaceContextType {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
+  myRole: string | null; // Current user's role in activeWorkspace
   loading: boolean;
   switchWorkspace: (workspaceId: string) => void;
   refreshWorkspaces: () => Promise<void>;
@@ -26,6 +27,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  const [myRole, setMyRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -72,9 +74,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setActiveWorkspace(data.workspace);
+        // Derive current user's role from the workspace members list
+        // The listWorkspaces endpoint already returns members filtered to the current user
+        // but getWorkspace returns all members. We find the matching member.
       } else {
         // Fallback or delete from localstorage if not found/accessible
         setActiveWorkspace(null);
+        setMyRole(null);
         localStorage.removeItem('activeWorkspaceId');
       }
     } catch (error) {
@@ -98,9 +104,23 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     } else {
       setWorkspaces([]);
       setActiveWorkspace(null);
+      setMyRole(null);
       setLoading(false);
     }
   }, [user, authLoading]);
+
+  // Derive myRole from the workspaces list (members filtered to current user) or from getWorkspace response
+  useEffect(() => {
+    if (activeWorkspace && user) {
+      // getWorkspace returns all members. Find the current user's role.
+      const myMembership = (activeWorkspace as any).members?.find(
+        (m: any) => m.userId === user.uid
+      );
+      setMyRole(myMembership?.role || null);
+    } else {
+      setMyRole(null);
+    }
+  }, [activeWorkspace, user]);
 
   // Auto-select first workspace if none active but some exist
   useEffect(() => {
@@ -118,7 +138,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <WorkspaceContext.Provider value={{ workspaces, activeWorkspace, loading, switchWorkspace, refreshWorkspaces, fetchWithAuth }}>
+    <WorkspaceContext.Provider value={{ workspaces, activeWorkspace, myRole, loading, switchWorkspace, refreshWorkspaces, fetchWithAuth }}>
       {children}
     </WorkspaceContext.Provider>
   );

@@ -75,6 +75,18 @@ describe('Workspace API', () => {
 
       expect(res.status).toBe(400);
     });
+
+    it('should reject duplicate workspace names', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: user1.id });
+
+      const res = await request(app)
+        .post('/api/workspaces')
+        .set('Authorization', 'Bearer fake-token-1')
+        .send({ name: 'User 1 Workspace' }); // Same name as before
+
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('CONFLICT');
+    });
   });
 
   describe('GET /api/workspaces', () => {
@@ -140,20 +152,99 @@ describe('Workspace API', () => {
   });
 
   describe('DELETE /api/workspaces/:workspaceId', () => {
-    it('should allow OWNER to soft delete workspace', async () => {
+    let editorUser: any;
+    let viewerUser: any;
+    let wsToDelete: any;
+
+    beforeAll(async () => {
+      // Create additional users for EDITOR/VIEWER tests
+      editorUser = await prisma.user.create({
+        data: { id: 'editor-del-id', email: 'editor-del@test.com', displayName: 'Editor Del' }
+      });
+      viewerUser = await prisma.user.create({
+        data: { id: 'viewer-del-id', email: 'viewer-del@test.com', displayName: 'Viewer Del' }
+      });
+
+      // Create a fresh workspace for deletion tests (workspace1 is needed for other tests)
+      wsToDelete = await prisma.workspace.create({
+        data: {
+          name: 'WS To Delete',
+          members: {
+            create: [
+              { userId: user1.id, role: Role.OWNER },
+              { userId: editorUser.id, role: Role.EDITOR },
+              { userId: viewerUser.id, role: Role.VIEWER },
+            ]
+          }
+        }
+      });
+    });
+
+    it('EDITOR cannot delete workspace → 403', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: editorUser.id });
+
+      const res = await request(app)
+        .delete(`/api/workspaces/${wsToDelete.id}`)
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('VIEWER cannot delete workspace → 403', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: viewerUser.id });
+
+      const res = await request(app)
+        .delete(`/api/workspaces/${wsToDelete.id}`)
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('OWNER cannot delete workspace they do NOT belong to → 404 (IDOR protection)', async () => {
+      // user2 is not a member of wsToDelete
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: user2.id });
+
+      const res = await request(app)
+        .delete(`/api/workspaces/${wsToDelete.id}`)
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(404);
+    });
+
+    it('OWNER can delete workspace → 200', async () => {
       (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: user1.id });
 
       const res = await request(app)
-        .delete(`/api/workspaces/${workspace1.id}`)
-        .set('Authorization', 'Bearer fake-token-1');
+        .delete(`/api/workspaces/${wsToDelete.id}`)
+        .set('Authorization', 'Bearer token');
 
       expect(res.status).toBe(200);
 
-      // Verify it is excluded from list
+      // Verify it is soft-deleted (excluded from list)
       const listRes = await request(app)
         .get('/api/workspaces')
-        .set('Authorization', 'Bearer fake-token-1');
-      expect(listRes.body.workspaces).toHaveLength(0);
+        .set('Authorization', 'Bearer token');
+      expect(listRes.body.workspaces.find((w: any) => w.id === wsToDelete.id)).toBeUndefined();
+    });
+
+    it('ADMIN can delete workspace → 200', async () => {
+      // Create a second workspace with user1 as ADMIN
+      const ws2 = await prisma.workspace.create({
+        data: {
+          name: 'WS Admin Delete',
+          members: { create: { userId: user1.id, role: Role.ADMIN } }
+        }
+      });
+
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: user1.id });
+
+      const res = await request(app)
+        .delete(`/api/workspaces/${ws2.id}`)
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(200);
     });
   });
 });

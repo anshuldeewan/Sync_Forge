@@ -8,29 +8,29 @@ const DEBOUNCE_MS = 5000; // 5 seconds
 /**
  * Trigger a debounced save to PostgreSQL.
  */
-export function debouncePersistence(pageId: string, ydoc: Y.Doc) {
-  if (debounceTimers.has(pageId)) {
-    const current = debounceTimers.get(pageId)!;
+export function debouncePersistence(docName: string, ydoc: Y.Doc) {
+  if (debounceTimers.has(docName)) {
+    const current = debounceTimers.get(docName)!;
     clearTimeout(current.timer);
     
     // We increase the version so if an old timer was executing, it gets superceded
     current.version += 1;
     
     const newVersion = current.version;
-    const timer = setTimeout(() => executeSave(pageId, ydoc, newVersion), DEBOUNCE_MS);
+    const timer = setTimeout(() => executeSave(docName, ydoc, newVersion), DEBOUNCE_MS);
     
-    debounceTimers.set(pageId, { timer, version: newVersion });
+    debounceTimers.set(docName, { timer, version: newVersion });
   } else {
     const version = 1;
-    const timer = setTimeout(() => executeSave(pageId, ydoc, version), DEBOUNCE_MS);
-    debounceTimers.set(pageId, { timer, version });
+    const timer = setTimeout(() => executeSave(docName, ydoc, version), DEBOUNCE_MS);
+    debounceTimers.set(docName, { timer, version });
   }
 }
 
-async function executeSave(pageId: string, ydoc: Y.Doc, expectedVersion: number) {
+async function executeSave(docName: string, ydoc: Y.Doc, expectedVersion: number) {
   try {
     // Check if another save was queued
-    const current = debounceTimers.get(pageId);
+    const current = debounceTimers.get(docName);
     if (current && current.version > expectedVersion) {
       // Abort, a newer save is pending
       return;
@@ -40,20 +40,29 @@ async function executeSave(pageId: string, ydoc: Y.Doc, expectedVersion: number)
     const buffer = Buffer.from(stateVector);
 
     // Save to Postgres
-    await prisma.documentSnapshot.create({
-      data: {
-        pageId,
-        state: buffer
-      }
-    });
+    const id = docName.startsWith('page:') ? docName.slice(5) : docName.startsWith('resource:') ? docName.slice(9) : docName;
+    if (docName.startsWith('resource:')) {
+      await prisma.fileSnapshot.upsert({
+        where: { resourceId: id },
+        update: { state: buffer },
+        create: { resourceId: id, state: buffer }
+      });
+    } else {
+      await prisma.documentSnapshot.create({
+        data: {
+          pageId: id,
+          state: buffer
+        }
+      });
+    }
 
     // Clean up timer tracking if this was the last queued save
-    const latest = debounceTimers.get(pageId);
+    const latest = debounceTimers.get(docName);
     if (latest && latest.version === expectedVersion) {
-      debounceTimers.delete(pageId);
+      debounceTimers.delete(docName);
     }
   } catch (error) {
-    console.error(`Failed to persist page ${pageId}:`, error);
+    console.error(`Failed to persist ${docName}:`, error);
     // In a production system we could implement retry logic, but for now we log it safely.
     // Notice we do NOT log document contents.
   }
@@ -62,18 +71,29 @@ async function executeSave(pageId: string, ydoc: Y.Doc, expectedVersion: number)
 /**
  * Fetch latest state from PostgreSQL to initialize the Y.Doc
  */
-export async function loadInitialState(pageId: string, ydoc: Y.Doc) {
+export async function loadInitialState(docName: string, ydoc: Y.Doc) {
   try {
-    const snapshot = await prisma.documentSnapshot.findFirst({
-      where: { pageId },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    if (snapshot) {
-      Y.applyUpdate(ydoc, new Uint8Array(snapshot.state));
+    const id = docName.startsWith('page:') ? docName.slice(5) : docName.startsWith('resource:') ? docName.slice(9) : docName;
+    
+    if (docName.startsWith('resource:')) {
+      const snapshot = await prisma.fileSnapshot.findFirst({
+        where: { resourceId: id },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (snapshot) {
+        Y.applyUpdate(ydoc, new Uint8Array(snapshot.state));
+      }
+    } else {
+      const snapshot = await prisma.documentSnapshot.findFirst({
+        where: { pageId: id },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (snapshot) {
+        Y.applyUpdate(ydoc, new Uint8Array(snapshot.state));
+      }
     }
   } catch (error) {
-    console.error(`Failed to load initial state for page ${pageId}`, error);
+    console.error(`Failed to load initial state for ${docName}`, error);
   }
 }
 
@@ -83,12 +103,12 @@ export async function loadInitialState(pageId: string, ydoc: Y.Doc) {
 export async function flushAllPendingSaves(docs: Map<string, Y.Doc>) {
   const promises = [];
   
-  for (const [pageId, tracking] of debounceTimers.entries()) {
+  for (const [docName, tracking] of debounceTimers.entries()) {
     clearTimeout(tracking.timer);
     
-    const ydoc = docs.get(pageId);
+    const ydoc = docs.get(docName);
     if (ydoc) {
-      promises.push(executeSave(pageId, ydoc, tracking.version));
+      promises.push(executeSave(docName, ydoc, tracking.version));
     }
   }
   

@@ -3,9 +3,9 @@
 import { useWorkspace } from '../../../../../context/WorkspaceContext';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { FileUpload } from '../../../../../components/files/FileUpload';
-import { FilesList } from '../../../../../components/files/FilesList';
-import { PagesList } from '../../../../../components/pages/PagesList';
+import { ProjectExplorer } from '../../../../../components/explorer/ProjectExplorer';
+import { Editor } from '../../../../../components/editor/Editor';
+import { FileViewer } from '../../../../../components/editor/FileViewer';
 
 export default function ProjectPage() {
   const { workspaces, activeWorkspace } = useWorkspace();
@@ -14,7 +14,7 @@ export default function ProjectPage() {
   const workspaceId = params.workspaceId as string;
   const projectId = params.projectId as string;
   const [project, setProject] = useState<any>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<any>(null);
 
   useEffect(() => {
     if (activeWorkspace && activeWorkspace.id === workspaceId) {
@@ -22,7 +22,6 @@ export default function ProjectPage() {
       if (found) {
         setProject(found);
       } else {
-        // Project not found, maybe redirect
         router.push(`/workspaces/${workspaceId}`);
       }
     }
@@ -34,7 +33,7 @@ export default function ProjectPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 p-6">
-      <div className="max-w-5xl mx-auto w-full space-y-6">
+      <div className="max-w-6xl mx-auto w-full space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <button 
@@ -47,24 +46,48 @@ export default function ProjectPage() {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            {/* Main content area (e.g. Pages, etc will go here in Phase 6) */}
-            <PagesList workspaceId={workspaceId} projectId={projectId} />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:col-span-1 h-[600px]">
+            <ProjectExplorer 
+              workspaceId={workspaceId} 
+              projectId={projectId} 
+              onFileSelect={(resource) => setSelectedFile(resource)}
+            />
           </div>
           
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold">Files</h2>
-            <FileUpload 
-              workspaceId={workspaceId} 
-              projectId={projectId} 
-              onUploadSuccess={() => setRefreshTrigger(t => t + 1)} 
-            />
-            <FilesList 
-              workspaceId={workspaceId} 
-              projectId={projectId} 
-              refreshTrigger={refreshTrigger} 
-            />
+          <div className="lg:col-span-3 space-y-6">
+            {selectedFile ? (
+              selectedFile.type === 'PAGE' ? (
+                <Editor 
+                  workspaceId={workspaceId}
+                  projectId={projectId}
+                  pageId={selectedFile.page?.id || selectedFile.id}
+                  key={selectedFile.id} // force remount on file switch
+                  initialShowHistory={selectedFile.action === 'history'}
+                />
+              ) : selectedFile.type === 'FILE' ? (
+                <FileViewer
+                  workspaceId={workspaceId}
+                  projectId={projectId}
+                  resourceId={selectedFile.id}
+                  filename={selectedFile.name}
+                  key={selectedFile.id}
+                  initialShowHistory={selectedFile.action === 'history'}
+                />
+              ) : (
+                <div className="bg-white dark:bg-black rounded-lg border border-gray-200 dark:border-zinc-800 p-8 flex flex-col items-center justify-center min-h-[400px] text-center text-gray-500">
+                  <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">{selectedFile.name}</h2>
+                  <p className="max-w-md">
+                    This resource type cannot be edited.
+                  </p>
+                </div>
+              )
+            ) : (
+              <div className="bg-white dark:bg-black rounded-lg border border-gray-200 dark:border-zinc-800 p-8 flex flex-col items-center justify-center min-h-[400px] text-center text-gray-500">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">Welcome to your Project</h2>
+                <p className="max-w-md">Select a page or file from the explorer on the left to view or edit it. Right click on the explorer to create folders and resources.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

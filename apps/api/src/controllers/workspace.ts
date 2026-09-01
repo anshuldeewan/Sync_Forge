@@ -22,10 +22,23 @@ export const createWorkspace = async (req: AuthenticatedRequest, res: Response) 
       return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } });
     }
 
+    const trimmedName = parsed.data.name.trim();
+
+    const existing = await prisma.workspace.findFirst({
+      where: {
+        name: { equals: trimmedName, mode: 'insensitive' },
+        isDeleted: false
+      }
+    });
+
+    if (existing) {
+      return res.status(409).json({ error: { code: 'CONFLICT', message: 'A workspace with this name already exists' } });
+    }
+
     const workspace = await prisma.$transaction(async (tx) => {
       const ws = await tx.workspace.create({
         data: {
-          name: parsed.data.name,
+          name: trimmedName,
           members: {
             create: {
               userId: req.user!.id,
@@ -112,9 +125,23 @@ export const updateWorkspace = async (req: AuthorizedRequest, res: Response) => 
       return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } });
     }
 
+    const trimmedName = parsed.data.name.trim();
+
+    const existing = await prisma.workspace.findFirst({
+      where: {
+        id: { not: workspaceId },
+        name: { equals: trimmedName, mode: 'insensitive' },
+        isDeleted: false
+      }
+    });
+
+    if (existing) {
+      return res.status(409).json({ error: { code: 'CONFLICT', message: 'A workspace with this name already exists' } });
+    }
+
     const workspace = await prisma.workspace.update({
       where: { id: workspaceId },
-      data: { name: parsed.data.name }
+      data: { name: trimmedName }
     });
 
     res.json({ workspace });

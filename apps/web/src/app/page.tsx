@@ -7,8 +7,9 @@ import { useEffect, useState } from 'react';
 
 export default function Home() {
   const { user, loading: authLoading, signOut } = useAuth();
-  const { workspaces, activeWorkspace, loading: wsLoading, switchWorkspace } = useWorkspace();
+  const { workspaces, activeWorkspace, myRole, loading: wsLoading, switchWorkspace, fetchWithAuth, refreshWorkspaces } = useWorkspace();
   const router = useRouter();
+  const canDelete = myRole === 'OWNER' || myRole === 'ADMIN';
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -77,12 +78,12 @@ export default function Home() {
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">{activeWorkspace.name} Projects</h2>
-              <div className="space-x-4">
+              <div className="space-x-2">
                 <button 
                   onClick={() => router.push(`/workspaces/${activeWorkspace.id}/settings`)}
                   className="text-sm font-medium hover:underline text-gray-500"
                 >
-                  Settings & Members
+                  Settings &amp; Members
                 </button>
                 <button 
                   onClick={() => router.push(`/workspaces/${activeWorkspace.id}/projects/new`)}
@@ -90,6 +91,19 @@ export default function Home() {
                 >
                   New Project
                 </button>
+                {canDelete && (
+                  <button 
+                    onClick={async () => {
+                      if (!confirm(`Delete workspace "${activeWorkspace.name}"? This cannot be undone.`)) return;
+                      const res = await fetchWithAuth(`/api/workspaces/${activeWorkspace.id}`, { method: 'DELETE' });
+                      if (res.ok) { await refreshWorkspaces(); router.push('/'); }
+                      else { const d = await res.json(); alert(d.error?.message || 'Delete failed'); }
+                    }}
+                    className="bg-red-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-red-700"
+                  >
+                    Delete Workspace
+                  </button>
+                )}
               </div>
             </div>
 
@@ -98,11 +112,29 @@ export default function Home() {
                 activeWorkspace.projects.map((project: any) => (
                   <div 
                     key={project.id} 
-                    onClick={() => router.push(`/workspaces/${activeWorkspace.id}/projects/${project.id}`)}
-                    className="border border-gray-200 dark:border-zinc-800 rounded p-4 bg-white dark:bg-black shadow-sm cursor-pointer hover:border-blue-500"
+                    className="border border-gray-200 dark:border-zinc-800 rounded p-4 bg-white dark:bg-black shadow-sm"
                   >
-                    <h3 className="font-medium text-lg">{project.name}</h3>
-                    <p className="text-sm text-gray-500 mt-2">Created {new Date(project.createdAt).toLocaleDateString()}</p>
+                    <div
+                      onClick={() => router.push(`/workspaces/${activeWorkspace.id}/projects/${project.id}`)}
+                      className="cursor-pointer hover:opacity-80"
+                    >
+                      <h3 className="font-medium text-lg">{project.name}</h3>
+                      <p className="text-sm text-gray-500 mt-2">Created {new Date(project.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    {canDelete && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!confirm(`Delete project "${project.name}"?`)) return;
+                          const res = await fetchWithAuth(`/api/workspaces/${activeWorkspace.id}/projects/${project.id}`, { method: 'DELETE' });
+                          if (res.ok) { await refreshWorkspaces(); }
+                          else { const d = await res.json(); alert(d.error?.message || 'Delete failed'); }
+                        }}
+                        className="mt-3 text-xs text-red-500 hover:text-red-700 hover:underline"
+                      >
+                        Delete Project
+                      </button>
+                    )}
                   </div>
                 ))
               ) : (

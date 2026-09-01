@@ -52,6 +52,8 @@ model User {
   authoredIssues  Issue[]            @relation("IssueAuthor")
   auditLogs       AuditLog[]
   fileAssets      FileAsset[]
+  createdResources Resource[]
+  revisions       Revision[]
 }
 
 model Workspace {
@@ -106,8 +108,41 @@ model Project {
   pages     Page[]
   files     FileAsset[]
   issues    Issue[]
+  resources Resource[]
 
   @@index([workspaceId])
+}
+
+enum ResourceType {
+  FOLDER
+  PAGE
+  FILE
+}
+
+model Resource {
+  id        String       @id @default(uuid())
+  projectId String
+  parentId  String?
+  name      String
+  type      ResourceType
+  position  Float        @default(0)
+  isDeleted Boolean      @default(false)
+  createdBy String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent    Resource?    @relation("ResourceHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Resource[]   @relation("ResourceHierarchy")
+  author    User         @relation(fields: [createdBy], references: [id])
+
+  page         Page?
+  fileAsset    FileAsset?
+  fileSnapshot FileSnapshot?
+  revisions    Revision[]
+
+  @@index([projectId])
+  @@index([parentId])
 }
 
 model Page {
@@ -115,6 +150,7 @@ model Page {
   projectId   String
   parentId    String?
   title       String
+  resourceId  String?  @unique
   content     Bytes?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -122,8 +158,8 @@ model Page {
   project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent    Page?      @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children  Page[]     @relation("PageHierarchy")
+  resource  Resource?  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
   snapshots DocumentSnapshot[]
-  revisions Revision[]
   comments  Comment[]
   mentions  Mention[]
 
@@ -139,14 +175,34 @@ model DocumentSnapshot {
   page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
 }
 
+model FileSnapshot {
+  id         String   @id @default(uuid())
+  resourceId String   @unique
+  state      Bytes
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+}
+
 model Revision {
   id              String   @id @default(uuid())
-  pageId          String
+  resourceId      String
   authorId        String
-  contentSnapshot Bytes
+  stateSnapshot   Bytes?   // For Yjs states (Pages and Code/Text Files)
+  fileAssetId     String?  // Reference to physical file if this is a binary upload
+  versionNumber   Int
+  message         String?
+  size            Int
   createdAt       DateTime @default(now())
 
-  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  resource        Resource   @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  author          User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  fileAsset       FileAsset? @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
+
+  @@unique([resourceId, versionNumber])
+  @@index([resourceId])
+  @@index([createdAt])
 }
 
 model Comment {
@@ -206,6 +262,7 @@ model Issue {
 model FileAsset {
   id          String   @id @default(uuid())
   projectId   String
+  resourceId  String?  @unique
   uploaderId  String
   filename    String
   path        String
@@ -213,8 +270,10 @@ model FileAsset {
   size        Int
   createdAt   DateTime @default(now())
 
-  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  uploader User    @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  project  Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploader User       @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  resource Resource?  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  revisions Revision[]
 
   @@index([projectId])
 }

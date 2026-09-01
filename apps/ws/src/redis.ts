@@ -16,8 +16,8 @@ redisPublisher.on('error', (err) => {
   console.error('Redis Publisher Error (safe):', err.message);
 });
 
-export function subscribeToPage(pageId: string, onUpdate: UpdateCallback) {
-  const channel = `page:${pageId}`;
+export function subscribeToPage(docName: string, onUpdate: UpdateCallback) {
+  const channel = docName;
   
   // Subscribe to the channel
   redisSubscriber.subscribe(channel, (err) => {
@@ -29,7 +29,7 @@ export function subscribeToPage(pageId: string, onUpdate: UpdateCallback) {
   // Listen for messages
   const listener = (msgChannel: string, message: Buffer) => {
     if (msgChannel === channel) {
-      onUpdate(pageId, new Uint8Array(message));
+      onUpdate(docName, new Uint8Array(message));
     }
   };
   
@@ -42,8 +42,8 @@ export function subscribeToPage(pageId: string, onUpdate: UpdateCallback) {
   };
 }
 
-export function publishUpdate(pageId: string, update: Uint8Array) {
-  const channel = `page:${pageId}`;
+export function publishUpdate(docName: string, update: Uint8Array) {
+  const channel = docName;
   const buffer = Buffer.from(update);
   
   redisPublisher.publish(channel, buffer).catch((err) => {

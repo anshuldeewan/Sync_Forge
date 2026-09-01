@@ -5,7 +5,7 @@ import * as Y from 'yjs';
 import http from 'http';
 import { verifyCollaborationToken } from './auth';
 import { debouncePersistence, flushAllPendingSaves } from './persistence';
-import { subscribeToPage, publishUpdate, closeRedis } from './redis';
+import { subscribeToPage, publishUpdate, closeRedis, redisSubscriber } from './redis';
 
 const port = parseInt(process.env.PORT || '3002', 10);
 const server = http.createServer((req, res) => {
@@ -22,56 +22,101 @@ const activeSubscriptions = new Map<string, () => void>();
 // This replaces the default LevelDB persistence with our PostgreSQL persistence
 setPersistence({
   bindState: async (docName: string, ydoc: Y.Doc) => {
-    // docName is "page:<pageId>"
-    const pageId = docName.startsWith('page:') ? docName.slice(5) : docName;
+    // docName is "page:<pageId>" or "resource:<resourceId>"
+    const id = docName.startsWith('page:') ? docName.slice(5) : docName.startsWith('resource:') ? docName.slice(9) : docName;
 
     // 1. Load from PostgreSQL
     try {
       const prisma = (await import('@syncforge/db')).default;
-      const snapshot = await prisma.documentSnapshot.findFirst({
-        where: { pageId },
-        orderBy: { createdAt: 'desc' }
-      });
-
-      if (snapshot) {
-        Y.applyUpdate(ydoc, new Uint8Array(snapshot.state));
-        console.log(`Loaded snapshot for page ${pageId}`);
+      if (docName.startsWith('resource:')) {
+        const snapshot = await prisma.fileSnapshot.findFirst({
+          where: { resourceId: id },
+          orderBy: { createdAt: 'desc' }
+        });
+        if (snapshot) {
+          Y.applyUpdate(ydoc, new Uint8Array(snapshot.state));
+          console.log(`Loaded snapshot for resource ${id}`);
+        }
+      } else {
+        const snapshot = await prisma.documentSnapshot.findFirst({
+          where: { pageId: id },
+          orderBy: { createdAt: 'desc' }
+        });
+        if (snapshot) {
+          Y.applyUpdate(ydoc, new Uint8Array(snapshot.state));
+          console.log(`Loaded snapshot for page ${id}`);
+        }
       }
     } catch (error) {
-      console.error(`Failed to load initial state for page ${pageId}:`, error);
+      console.error(`Failed to load initial state for ${docName}:`, error);
     }
 
     // 2. Subscribe to Redis for remote updates (cross-server sync)
-    if (!activeSubscriptions.has(pageId)) {
-      const unsubscribe = subscribeToPage(pageId, (pid, update) => {
+    if (!activeSubscriptions.has(docName)) {
+      const unsubscribe = subscribeToPage(docName, (name, update) => {
         // Apply the update received from Redis
         // We pass 'redis' as the origin to prevent feedback loops
         Y.applyUpdate(ydoc, update, 'redis');
       });
-      activeSubscriptions.set(pageId, unsubscribe);
+      activeSubscriptions.set(docName, unsubscribe);
     }
 
-    // 3. Hook into document updates for Redis broadcasting + DB persistence
+    // 3. Subscribe to specialized restore events
+    const restoreChannel = `restore:${docName}`;
+    const restoreListener = (msgChannel: string, message: Buffer) => {
+      if (msgChannel === restoreChannel) {
+        console.log(`[RESTORE] Received restore event for ${docName}. Disconnecting clients.`);
+        // To enforce a clean restore, we must destroy the current in-memory ydoc
+        // and force clients to reconnect so they fetch the newly restored snapshot.
+        // We can do this by closing all websocket connections for this doc.
+        wss.clients.forEach(client => {
+          // Unfortunately y-websocket doesn't expose the docName on the ws object easily,
+          // but we can check the URL.
+          // Better: we can just terminate connections associated with this doc by iterating docs.
+          // Wait, y-websocket maintains a `conns` map on the doc.
+          const ydocAny = ydoc as any;
+          if (ydocAny.conns) {
+            for (const [conn] of ydocAny.conns) {
+               conn.close(1011, 'RESTORE_TRIGGERED');
+            }
+          }
+        });
+        
+        // Remove from local memory
+        ydoc.destroy();
+        docs.delete(docName);
+      }
+    };
+    redisSubscriber.subscribe(restoreChannel);
+    redisSubscriber.on('messageBuffer', restoreListener);
+    
+    // Cleanup restore subscription on destroy
+    const origDestroy = ydoc.destroy.bind(ydoc);
+    ydoc.destroy = function () {
+       redisSubscriber.unsubscribe(restoreChannel);
+       redisSubscriber.off('messageBuffer', restoreListener);
+       origDestroy();
+    };
+
+    // 4. Hook into document updates for Redis broadcasting + DB persistence
     ydoc.on('update', (update: Uint8Array, origin: any) => {
       // Prevent feedback loop: don't publish updates that came from Redis
       if (origin !== 'redis') {
-        publishUpdate(pageId, update);
+        publishUpdate(docName, update);
       }
 
       // Trigger debounced persistence (for ALL updates)
-      debouncePersistence(pageId, ydoc);
+      debouncePersistence(docName, ydoc);
     });
   },
   writeState: async (docName: string, _ydoc: Y.Doc) => {
     // Called when all connections to a doc are closed and the doc is being destroyed.
     // We can do a final flush here.
-    const pageId = docName.startsWith('page:') ? docName.slice(5) : docName;
-
     // Cleanup Redis subscription
-    const unsub = activeSubscriptions.get(pageId);
+    const unsub = activeSubscriptions.get(docName);
     if (unsub) {
       unsub();
-      activeSubscriptions.delete(pageId);
+      activeSubscriptions.delete(docName);
     }
 
     return Promise.resolve();
@@ -87,10 +132,10 @@ wss.on('connection', async (ws, req) => {
     return;
   }
 
-  const { pageId, role } = tokenPayload;
-  const docName = `page:${pageId}`;
+  const { pageId, resourceId, role } = tokenPayload;
+  const docName = resourceId ? `resource:${resourceId}` : `page:${pageId}`;
 
-  console.log(`Client connected: pageId=${pageId}, role=${role}`);
+  console.log(`Client connected: docName=${docName}, role=${role}`);
 
   // Enforce VIEWER read-only by intercepting messages BEFORE setupWSConnection
   // setupWSConnection sets binaryType='arraybuffer', so messages arrive as ArrayBuffer
@@ -109,10 +154,17 @@ wss.on('connection', async (ws, req) => {
               // syncType 1 = SyncStep2 (client sending state), 2 = Update (client mutation)
               // Only allow syncType 0 = SyncStep1 (client requesting state)
               if (syncType === 1 || syncType === 2) {
+                console.log(`[VIEWER] Dropping mutation: syncType=${syncType}`);
                 // Drop mutation silently — Viewer cannot write
                 return;
+              } else {
+                console.log(`[VIEWER] Allowed syncType: ${syncType}`);
               }
+            } else {
+              console.log(`[VIEWER] Allowed msgType: ${msgType}`);
             }
+          } else {
+             console.log(`[VIEWER] Message too short: ${message.length}`);
           }
           // Allow awareness messages (type 1) and sync step 1 requests (type 0, subtype 0)
           listener(data);

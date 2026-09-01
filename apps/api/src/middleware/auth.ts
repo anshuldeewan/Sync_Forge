@@ -19,13 +19,23 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
   try {
     const decodedToken = await auth.verifyIdToken(token);
     
-    // Check if user exists in the database
-    const dbUser = await prisma.user.findUnique({
+    let dbUser = await prisma.user.findUnique({
       where: { id: decodedToken.uid }
     });
     
     if (!dbUser) {
-      return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'User record not found in database. Please sync.' } });
+      if (!decodedToken.email) {
+        return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Firebase token missing email.' } });
+      }
+      
+      // Auto-synchronize Firebase user to Database
+      dbUser = await prisma.user.create({
+        data: {
+          id: decodedToken.uid,
+          email: decodedToken.email,
+          displayName: decodedToken.name || decodedToken.email.split('@')[0],
+        }
+      });
     }
 
     req.user = {

@@ -159,6 +159,19 @@ export const deleteFile = async (req: AuthorizedRequest, res: Response) => {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'File not found.' } });
     }
 
+    const revisionCount = await prisma.revision.count({
+      where: { fileAssetId: fileId }
+    });
+
+    if (revisionCount > 0) {
+      return res.status(409).json({ 
+        error: { 
+          code: 'CONFLICT', 
+          message: 'Cannot delete file asset because it is referenced by one or more historical revisions.' 
+        } 
+      });
+    }
+
     await storage.delete(fileAsset.path);
     await prisma.fileAsset.delete({ where: { id: fileId } });
 

@@ -20,11 +20,25 @@ export const createProject = async (req: AuthorizedRequest, res: Response) => {
       return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } });
     }
 
+    const trimmedName = parsed.data.name.trim();
+
+    const existing = await prisma.project.findFirst({
+      where: {
+        workspaceId,
+        name: { equals: trimmedName, mode: 'insensitive' },
+        isDeleted: false
+      }
+    });
+
+    if (existing) {
+      return res.status(409).json({ error: { code: 'CONFLICT', message: 'A project with this name already exists in the workspace' } });
+    }
+
     const project = await prisma.$transaction(async (tx) => {
       const p = await tx.project.create({
         data: {
           workspaceId,
-          name: parsed.data.name
+          name: trimmedName
         }
       });
 
@@ -95,6 +109,21 @@ export const updateProject = async (req: AuthorizedRequest, res: Response) => {
       return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } });
     }
 
+    const trimmedName = parsed.data.name.trim();
+
+    const existing = await prisma.project.findFirst({
+      where: {
+        workspaceId,
+        id: { not: projectId },
+        name: { equals: trimmedName, mode: 'insensitive' },
+        isDeleted: false
+      }
+    });
+
+    if (existing) {
+      return res.status(409).json({ error: { code: 'CONFLICT', message: 'A project with this name already exists in the workspace' } });
+    }
+
     const project = await prisma.project.findFirst({
       where: { id: projectId, workspaceId, isDeleted: false }
     });
@@ -105,7 +134,7 @@ export const updateProject = async (req: AuthorizedRequest, res: Response) => {
 
     const updated = await prisma.project.update({
       where: { id: projectId },
-      data: { name: parsed.data.name }
+      data: { name: trimmedName }
     });
 
     res.json({ project: updated });

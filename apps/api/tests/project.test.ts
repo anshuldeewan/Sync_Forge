@@ -39,6 +39,21 @@ describe('Project API', () => {
         }
       }
     });
+
+    // Add an owner and admin for testing project deletion
+    await prisma.user.createMany({
+      data: [
+        { id: 'owner-proj-id', email: 'owner@test.com', displayName: 'Owner' },
+        { id: 'admin-proj-id', email: 'admin@test.com', displayName: 'Admin' }
+      ]
+    });
+
+    await prisma.workspaceMember.createMany({
+      data: [
+        { workspaceId: workspace.id, userId: 'owner-proj-id', role: Role.OWNER },
+        { workspaceId: workspace.id, userId: 'admin-proj-id', role: Role.ADMIN }
+      ]
+    });
   });
 
   afterEach(() => {
@@ -71,6 +86,77 @@ describe('Project API', () => {
       const page = await prisma.page.findFirst({ where: { projectId: project.id } });
       expect(page).toBeDefined();
       expect(page?.title).toBe('Getting Started');
+    });
+
+    it('should reject duplicate project names within the same workspace', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: editor.id });
+      const res = await request(app)
+        .post(`/api/workspaces/${workspace.id}/projects`)
+        .set('Authorization', 'Bearer token')
+        .send({ name: 'New Project' }); // Same name
+
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('CONFLICT');
+    });
+  });
+
+  describe('DELETE /api/workspaces/:workspaceId/projects/:projectId', () => {
+    let projectToDelete: any;
+
+    beforeAll(async () => {
+      // Create a fresh project for deletion tests
+      projectToDelete = await prisma.project.create({
+        data: { workspaceId: workspace.id, name: 'Project To Delete' }
+      });
+    });
+
+    it('EDITOR cannot delete project → 403', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: editor.id });
+      const res = await request(app)
+        .delete(`/api/workspaces/${workspace.id}/projects/${projectToDelete.id}`)
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('VIEWER cannot delete project → 403', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: viewer.id });
+      const res = await request(app)
+        .delete(`/api/workspaces/${workspace.id}/projects/${projectToDelete.id}`)
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('OWNER can delete project → 200', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: 'owner-proj-id' });
+      const res = await request(app)
+        .delete(`/api/workspaces/${workspace.id}/projects/${projectToDelete.id}`)
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(200);
+
+      const deletedProj = await prisma.project.findFirst({ where: { id: projectToDelete.id } });
+      expect(deletedProj?.isDeleted).toBe(true);
+    });
+
+    it('ADMIN can delete project → 200', async () => {
+      // Create a new project since OWNER already deleted the previous one
+      const p2 = await prisma.project.create({
+        data: { workspaceId: workspace.id, name: 'Admin Delete Project' }
+      });
+
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: 'admin-proj-id' });
+      const res = await request(app)
+        .delete(`/api/workspaces/${workspace.id}/projects/${p2.id}`)
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(200);
+
+      const deletedProj = await prisma.project.findFirst({ where: { id: p2.id } });
+      expect(deletedProj?.isDeleted).toBe(true);
     });
   });
 

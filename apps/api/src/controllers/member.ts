@@ -11,9 +11,21 @@ const updateMemberSchema = z.object({
 export const listMembers = async (req: AuthorizedRequest, res: Response) => {
   try {
     const { workspaceId } = req.params;
+    const { q } = req.query;
+
+    const whereClause: any = { workspaceId };
+    
+    if (q && typeof q === 'string') {
+      whereClause.user = {
+        OR: [
+          { displayName: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: 'insensitive' } }
+        ]
+      };
+    }
 
     const members = await prisma.workspaceMember.findMany({
-      where: { workspaceId },
+      where: whereClause,
       include: {
         user: {
           select: {

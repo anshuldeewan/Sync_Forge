@@ -66,8 +66,9 @@ export default function NewProject() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Project Name</label>
+            <label htmlFor="projectName" className="block text-sm font-medium mb-1">Project Name</label>
             <input
+              id="projectName"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
