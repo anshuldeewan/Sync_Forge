@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@syncforge/db": "workspace:*",
+    "dotenv": "^17.4.2",
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "ws": "^8.18.0",

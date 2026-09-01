@@ -6,6 +6,7 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
+    displayName: string;
   };
 }
 
@@ -40,7 +41,8 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
 
     req.user = {
       id: dbUser.id,
-      email: dbUser.email
+      email: dbUser.email,
+      displayName: dbUser.displayName
     };
     
     next();

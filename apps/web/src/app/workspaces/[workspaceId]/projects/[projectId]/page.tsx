@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { ProjectExplorer } from '../../../../../components/explorer/ProjectExplorer';
 import { Editor } from '../../../../../components/editor/Editor';
 import { FileViewer } from '../../../../../components/editor/FileViewer';
+import { NotificationBell } from '../../../../../components/NotificationBell';
 
 export default function ProjectPage() {
   const { workspaces, activeWorkspace } = useWorkspace();
@@ -43,6 +44,15 @@ export default function ProjectPage() {
               &larr; Back to Dashboard
             </button>
             <h1 className="text-3xl font-bold">{project.name}</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues`)}
+              className="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800"
+            >
+              Issues
+            </button>
+            <NotificationBell />
           </div>
         </div>
         

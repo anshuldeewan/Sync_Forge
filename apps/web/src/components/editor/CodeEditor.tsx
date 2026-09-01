@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
@@ -47,6 +48,7 @@ const getLanguage = (filename: string) => {
 };
 
 export function CodeEditor({ workspaceId, projectId, resourceId, filename, initialShowHistory = false }: CodeEditorProps) {
+  const router = useRouter();
   const { fetchWithAuth } = useWorkspace();
   const [status, setStatus] = useState('Connecting...');
   const [role, setRole] = useState<string | null>(null);
@@ -171,6 +173,28 @@ export function CodeEditor({ workspaceId, projectId, resourceId, filename, initi
 
   const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
+    (window as any).monacoEditor = editor; // Expose for Playwright tests
+
+    // Add context menu action for creating an issue (independent of Yjs connection)
+    editor.addAction({
+      id: 'create-issue-from-selection',
+      label: 'Create Issue from Selection',
+      contextMenuGroupId: 'navigation',
+      contextMenuOrder: 1.5,
+      run: (ed: any) => {
+        const selection = ed.getSelection();
+        const text = selection ? ed.getModel().getValueInRange(selection) : '';
+        const snippetData = {
+          text,
+          resourceId,
+          version: 'latest',
+          startLine: selection ? selection.startLineNumber : 1,
+          endLine: selection ? selection.endLineNumber : 1
+        };
+        sessionStorage.setItem('syncforge_pending_issue', JSON.stringify(snippetData));
+        router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues?new=true`);
+      }
+    });
 
     // We must wait for provider to be ready
     if (!isReady || !providerRef.current) return;
@@ -180,7 +204,7 @@ export function CodeEditor({ workspaceId, projectId, resourceId, filename, initi
 
     // Bind Monaco editor to Yjs text type
     bindingRef.current = new MonacoBinding(type, editor.getModel(), new Set([editor]), providerRef.current.awareness);
-    
+
     // Listen for changes to update status to "Saving..."
     ydocRef.current.on('update', () => {
       setStatus('Saving...');

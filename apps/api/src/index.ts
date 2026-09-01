@@ -104,6 +104,22 @@ app.post('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId/comment
 app.patch('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId/comments/:commentId', requireAuth, requirePermission(WorkspaceAction.READ_PAGES), updateComment);
 app.delete('/api/workspaces/:workspaceId/projects/:projectId/pages/:pageId/comments/:commentId', requireAuth, requirePermission(WorkspaceAction.READ_PAGES), deleteComment);
 
+import { listIssues, createIssue, getIssue, updateIssue, deleteIssue } from './controllers/issue';
+
+// Issue Routes
+app.get('/api/workspaces/:workspaceId/projects/:projectId/issues', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), listIssues);
+app.post('/api/workspaces/:workspaceId/projects/:projectId/issues', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), createIssue);
+app.get('/api/workspaces/:workspaceId/projects/:projectId/issues/:issueId', requireAuth, requirePermission(WorkspaceAction.READ_PROJECTS), getIssue);
+app.patch('/api/workspaces/:workspaceId/projects/:projectId/issues/:issueId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), updateIssue);
+app.delete('/api/workspaces/:workspaceId/projects/:projectId/issues/:issueId', requireAuth, requirePermission(WorkspaceAction.MANAGE_PROJECTS), deleteIssue);
+
+import { listNotifications, markNotificationRead, markAllNotificationsRead } from './controllers/notification';
+
+// Notification Routes
+app.get('/api/notifications', requireAuth, listNotifications);
+app.patch('/api/notifications/read-all', requireAuth, markAllNotificationsRead);
+app.patch('/api/notifications/:id/read', requireAuth, markNotificationRead);
+
 
 if (require.main === module) {
   app.listen(port, () => {

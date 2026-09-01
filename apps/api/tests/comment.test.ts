@@ -13,7 +13,9 @@ jest.mock('@syncforge/db', () => ({
     update: jest.fn(),
     delete: jest.fn()
   },
-  workspaceMember: { findUnique: jest.fn() }
+  mention: { create: jest.fn() },
+  notification: { create: jest.fn() },
+  workspaceMember: { findUnique: jest.fn(), findFirst: jest.fn() }
 }));
 
 jest.mock('../src/middleware/auth', () => ({

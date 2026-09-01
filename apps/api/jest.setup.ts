@@ -20,3 +20,4 @@ if (!dbUrl || !dbUrl.includes('syncforge_test')) {
     `Create apps/api/.env.test with DATABASE_URL pointing to syncforge_test.`
   );
 }
+

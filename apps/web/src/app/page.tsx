@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { NotificationBell } from '../components/NotificationBell';
 
 export default function Home() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -52,6 +53,7 @@ export default function Home() {
         </div>
         
         <div className="flex items-center gap-4">
+          <NotificationBell />
           <span className="text-sm">{user.displayName || user.email}</span>
           <button
             onClick={signOut}

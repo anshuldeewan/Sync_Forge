@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { WebSocketServer } from 'ws';
 // @ts-ignore
 import { setupWSConnection, getYDoc, setPersistence, docs } from 'y-websocket/bin/utils';
