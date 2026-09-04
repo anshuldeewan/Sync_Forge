@@ -134,7 +134,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const switchWorkspace = (workspaceId: string) => {
     localStorage.setItem('activeWorkspaceId', workspaceId);
     loadActiveWorkspace(workspaceId);
-    router.push('/');
+    router.push(`/workspaces/${workspaceId}`);
   };
 
   return (
