@@ -109,7 +109,15 @@ export default function WorkspaceSettings() {
       <div className="max-w-4xl mx-auto w-full">
         <button onClick={() => router.push('/')} className="text-blue-500 hover:underline mb-6">&larr; Back to Dashboard</button>
         
-        <h1 className="text-3xl font-bold mb-8">Workspace Settings</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Workspace Settings</h1>
+          <button 
+            onClick={() => router.push(`/workspaces/${workspaceId}/settings/audit`)} 
+            className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded text-sm font-medium transition-colors"
+          >
+            View Audit Logs
+          </button>
+        </div>
 
         <div className="bg-white dark:bg-black rounded-lg p-6 shadow-sm border border-gray-200 dark:border-zinc-800 mb-8">
           <h2 className="text-xl font-semibold mb-4">Members</h2>

@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthorizedRequest } from '../middleware/rbac';
 import prisma from '@syncforge/db';
 import { z } from 'zod';
+import { AuditService, AuditEventAction } from '../services/audit';
 
 const createProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(100)
@@ -49,6 +50,14 @@ export const createProject = async (req: AuthorizedRequest, res: Response) => {
           title: 'Getting Started',
         }
       });
+
+      await AuditService.logEvent({
+        workspaceId,
+        userId: req.user!.id,
+        action: AuditEventAction.PROJECT_CREATED,
+        resource: p.id,
+        metadata: { name: trimmedName }
+      }, tx);
 
       return p;
     });
@@ -156,9 +165,18 @@ export const deleteProject = async (req: AuthorizedRequest, res: Response) => {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Project not found' } });
     }
 
-    await prisma.project.update({
-      where: { id: projectId },
-      data: { isDeleted: true }
+    await prisma.$transaction(async (tx) => {
+      await tx.project.update({
+        where: { id: projectId },
+        data: { isDeleted: true }
+      });
+
+      await AuditService.logEvent({
+        workspaceId,
+        userId: req.user!.id,
+        action: AuditEventAction.PROJECT_DELETED,
+        resource: projectId
+      }, tx);
     });
 
     res.json({ success: true });

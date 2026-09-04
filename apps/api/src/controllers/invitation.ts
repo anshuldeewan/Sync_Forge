@@ -5,6 +5,7 @@ import prisma from '@syncforge/db';
 import { Role, InvitationStatus } from '@syncforge/db';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { AuditService, AuditEventAction } from '../services/audit';
 
 const createInvitationSchema = z.object({
   email: z.string().email('Invalid email format'),
@@ -57,15 +58,27 @@ export const createInvitation = async (req: AuthorizedRequest, res: Response) =>
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
-    const invitation = await prisma.workspaceInvitation.create({
-      data: {
+    const invitation = await prisma.$transaction(async (tx) => {
+      const inv = await tx.workspaceInvitation.create({
+        data: {
+          workspaceId,
+          email,
+          role,
+          token,
+          expiresAt,
+          status: InvitationStatus.PENDING
+        }
+      });
+
+      await AuditService.logEvent({
         workspaceId,
-        email,
-        role,
-        token,
-        expiresAt,
-        status: InvitationStatus.PENDING
-      }
+        userId: req.user!.id,
+        action: AuditEventAction.MEMBER_INVITED,
+        resource: inv.id,
+        metadata: { email, role }
+      }, tx);
+
+      return inv;
     });
 
     // Provide safe URL in response

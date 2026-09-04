@@ -22,27 +22,33 @@ app.get('/api/protected', requireAuth, (req: any, res: any) => {
 });
 
 import { createWorkspace, listWorkspaces, getWorkspace, updateWorkspace, deleteWorkspace } from './controllers/workspace';
+import { listWorkspaceAuditLogs } from './controllers/audit';
+import { listGlobalUsers, listGlobalWorkspaces, listGlobalAuditLogs, getSystemStats } from './controllers/admin';
 import { listMembers, updateMemberRole, removeMember } from './controllers/member';
 import { requirePermission, WorkspaceAction } from './middleware/rbac';
+import { requirePlatformAdmin } from './middleware/admin';
+import { blockDemoDestructive } from './middleware/demo';
+import { provisionDemo } from './controllers/demo';
 
 // Workspace Routes
 app.post('/api/workspaces', requireAuth, createWorkspace);
 app.get('/api/workspaces', requireAuth, listWorkspaces);
 app.get('/api/workspaces/:workspaceId', requireAuth, requirePermission(WorkspaceAction.READ_WORKSPACE), getWorkspace);
 app.patch('/api/workspaces/:workspaceId', requireAuth, requirePermission(WorkspaceAction.UPDATE_WORKSPACE), updateWorkspace);
-app.delete('/api/workspaces/:workspaceId', requireAuth, requirePermission(WorkspaceAction.DELETE_WORKSPACE), deleteWorkspace);
+app.delete('/api/workspaces/:workspaceId', requireAuth, blockDemoDestructive, requirePermission(WorkspaceAction.DELETE_WORKSPACE), deleteWorkspace);
+app.get('/api/workspaces/:workspaceId/audit', requireAuth, requirePermission(WorkspaceAction.READ_AUDIT_LOGS), listWorkspaceAuditLogs);
 
 // Member Routes
 app.get('/api/workspaces/:workspaceId/members', requireAuth, requirePermission(WorkspaceAction.READ_WORKSPACE), listMembers);
-app.patch('/api/workspaces/:workspaceId/members/:userId', requireAuth, requirePermission(WorkspaceAction.MANAGE_MEMBERS), updateMemberRole);
-app.delete('/api/workspaces/:workspaceId/members/:userId', requireAuth, requirePermission(WorkspaceAction.MANAGE_MEMBERS), removeMember);
+app.patch('/api/workspaces/:workspaceId/members/:userId', requireAuth, blockDemoDestructive, requirePermission(WorkspaceAction.MANAGE_MEMBERS), updateMemberRole);
+app.delete('/api/workspaces/:workspaceId/members/:userId', requireAuth, blockDemoDestructive, requirePermission(WorkspaceAction.MANAGE_MEMBERS), removeMember);
 
 import { createInvitation, listInvitations, revokeInvitation, acceptInvitation } from './controllers/invitation';
 
 // Invitation Routes
-app.post('/api/workspaces/:workspaceId/invitations', requireAuth, requirePermission(WorkspaceAction.MANAGE_INVITATIONS), createInvitation);
+app.post('/api/workspaces/:workspaceId/invitations', requireAuth, blockDemoDestructive, requirePermission(WorkspaceAction.MANAGE_INVITATIONS), createInvitation);
 app.get('/api/workspaces/:workspaceId/invitations', requireAuth, requirePermission(WorkspaceAction.MANAGE_INVITATIONS), listInvitations);
-app.delete('/api/workspaces/:workspaceId/invitations/:id', requireAuth, requirePermission(WorkspaceAction.MANAGE_INVITATIONS), revokeInvitation);
+app.delete('/api/workspaces/:workspaceId/invitations/:id', requireAuth, blockDemoDestructive, requirePermission(WorkspaceAction.MANAGE_INVITATIONS), revokeInvitation);
 app.post('/api/invitations/accept', requireAuth, acceptInvitation);
 
 import { createProject, listProjects, getProject, updateProject, deleteProject } from './controllers/project';
@@ -120,6 +126,21 @@ app.get('/api/notifications', requireAuth, listNotifications);
 app.patch('/api/notifications/read-all', requireAuth, markAllNotificationsRead);
 app.patch('/api/notifications/:id/read', requireAuth, markNotificationRead);
 
+
+// Admin Routes
+app.get('/api/admin/users', requireAuth, requirePlatformAdmin, listGlobalUsers);
+app.get('/api/admin/workspaces', requireAuth, requirePlatformAdmin, listGlobalWorkspaces);
+app.get('/api/admin/audit', requireAuth, requirePlatformAdmin, listGlobalAuditLogs);
+app.get('/api/admin/stats', requireAuth, requirePlatformAdmin, getSystemStats);
+
+// Demo Routes
+app.post('/api/demo/provision', requireAuth, provisionDemo);
+
+// Fallback error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled API Error:', err);
+  res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } });
+});
 
 if (require.main === module) {
   app.listen(port, () => {

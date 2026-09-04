@@ -4,6 +4,7 @@ import prisma from '@syncforge/db';
 import { ResourceType } from '@syncforge/db';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
+import { AuditService, AuditEventAction } from '../services/audit';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'syncforge_super_secret_for_collaboration_only';
 
@@ -252,6 +253,13 @@ export const deleteResource = async (req: AuthorizedRequest, res: Response) => {
 
     await prisma.$transaction(async (tx) => {
       await deleteRecursively(id, tx);
+      
+      await AuditService.logEvent({
+        workspaceId: req.workspaceMember!.workspaceId,
+        userId: req.user!.id,
+        action: AuditEventAction.RESOURCE_DELETED,
+        resource: id
+      }, tx);
     });
 
     res.json({ success: true });

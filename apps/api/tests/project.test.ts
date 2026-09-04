@@ -17,6 +17,7 @@ describe('Project API', () => {
   let project: any;
 
   beforeAll(async () => {
+    await prisma.auditLog.deleteMany();
     await prisma.page.deleteMany();
     await prisma.project.deleteMany();
     await prisma.workspaceMember.deleteMany();
@@ -86,6 +87,12 @@ describe('Project API', () => {
       const page = await prisma.page.findFirst({ where: { projectId: project.id } });
       expect(page).toBeDefined();
       expect(page?.title).toBe('Getting Started');
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'PROJECT_CREATED', resource: project.id }
+      });
+      expect(audit).toBeTruthy();
+      expect((audit!.metadata as any).name).toBe('New Project');
     });
 
     it('should reject duplicate project names within the same workspace', async () => {
@@ -140,6 +147,11 @@ describe('Project API', () => {
 
       const deletedProj = await prisma.project.findFirst({ where: { id: projectToDelete.id } });
       expect(deletedProj?.isDeleted).toBe(true);
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'PROJECT_DELETED', resource: projectToDelete.id }
+      });
+      expect(audit).toBeTruthy();
     });
 
     it('ADMIN can delete project → 200', async () => {

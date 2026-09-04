@@ -17,7 +17,7 @@ describe('Workspace API', () => {
   let workspace1: any;
 
   beforeAll(async () => {
-    // Clear DB
+    await prisma.auditLog.deleteMany();
     await prisma.workspaceMember.deleteMany();
     await prisma.workspace.deleteMany();
     await prisma.user.deleteMany();
@@ -63,6 +63,14 @@ describe('Workspace API', () => {
       expect(res.body.workspace.members[0].role).toBe(Role.OWNER);
 
       workspace1 = res.body.workspace;
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'WORKSPACE_CREATED', workspaceId: workspace1.id }
+      });
+      expect(audit).toBeTruthy();
+      expect(audit!.userId).toBe(user1.id);
+      expect(audit!.resource).toBe(workspace1.id);
+      expect((audit!.metadata as any).name).toBe('User 1 Workspace');
     });
 
     it('should reject invalid names', async () => {
@@ -148,6 +156,12 @@ describe('Workspace API', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.workspace.name).toBe('Updated Name');
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'WORKSPACE_UPDATED', workspaceId: workspace1.id }
+      });
+      expect(audit).toBeTruthy();
+      expect((audit!.metadata as any).newName).toBe('Updated Name');
     });
   });
 
@@ -227,6 +241,11 @@ describe('Workspace API', () => {
         .get('/api/workspaces')
         .set('Authorization', 'Bearer token');
       expect(listRes.body.workspaces.find((w: any) => w.id === wsToDelete.id)).toBeUndefined();
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'WORKSPACE_DELETED', workspaceId: wsToDelete.id }
+      });
+      expect(audit).toBeTruthy();
     });
 
     it('ADMIN can delete workspace → 200', async () => {

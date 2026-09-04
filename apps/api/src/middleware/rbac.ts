@@ -15,7 +15,8 @@ export enum WorkspaceAction {
   MANAGE_FILES = 'MANAGE_FILES',
   READ_FILES = 'READ_FILES',
   MANAGE_PAGES = 'MANAGE_PAGES',
-  READ_PAGES = 'READ_PAGES'
+  READ_PAGES = 'READ_PAGES',
+  READ_AUDIT_LOGS = 'READ_AUDIT_LOGS'
 }
 
 const RolePermissions: Record<Role, WorkspaceAction[]> = {
@@ -32,6 +33,7 @@ const RolePermissions: Record<Role, WorkspaceAction[]> = {
     WorkspaceAction.READ_FILES,
     WorkspaceAction.MANAGE_PAGES,
     WorkspaceAction.READ_PAGES,
+    WorkspaceAction.READ_AUDIT_LOGS,
   ],
   [Role.ADMIN]: [
     WorkspaceAction.UPDATE_WORKSPACE,
@@ -46,6 +48,7 @@ const RolePermissions: Record<Role, WorkspaceAction[]> = {
     WorkspaceAction.READ_FILES,
     WorkspaceAction.MANAGE_PAGES,
     WorkspaceAction.READ_PAGES,
+    WorkspaceAction.READ_AUDIT_LOGS,
   ],
   [Role.EDITOR]: [
     WorkspaceAction.READ_WORKSPACE,

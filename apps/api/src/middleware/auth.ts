@@ -7,6 +7,8 @@ export interface AuthenticatedRequest extends Request {
     id: string;
     email: string;
     displayName: string;
+    isPlatformAdmin: boolean;
+    isDemo: boolean;
   };
 }
 
@@ -42,7 +44,9 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
     req.user = {
       id: dbUser.id,
       email: dbUser.email,
-      displayName: dbUser.displayName
+      displayName: dbUser.displayName,
+      isPlatformAdmin: dbUser.isPlatformAdmin,
+      isDemo: dbUser.email.endsWith('@demo.syncforge.local')
     };
     
     next();

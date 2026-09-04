@@ -69,13 +69,34 @@ describe('Auth Endpoints & Middleware', () => {
       expect(res.body.error.message).toBe('Firebase token missing email.');
     });
 
-    it('should allow access to protected route with valid token and existing user', async () => {
+    it('should allow access to protected route with valid token and existing user, and attach flags', async () => {
       (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: 'user-1' });
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-1', email: 'test@test.com' });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ 
+        id: 'user-1', 
+        email: 'test@test.com',
+        isPlatformAdmin: true,
+        displayName: 'Test'
+      });
 
       const res = await request(app).get('/api/protected').set('Authorization', 'Bearer valid-token');
       expect(res.status).toBe(200);
       expect(res.body.user.id).toBe('user-1');
+      expect(res.body.user.isPlatformAdmin).toBe(true);
+      expect(res.body.user.isDemo).toBe(false);
+    });
+
+    it('should set isDemo to true for @demo.syncforge.local emails', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: 'demo-1' });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ 
+        id: 'demo-1', 
+        email: 'recruiter@demo.syncforge.local',
+        isPlatformAdmin: false,
+        displayName: 'Demo User'
+      });
+
+      const res = await request(app).get('/api/protected').set('Authorization', 'Bearer valid-token');
+      expect(res.status).toBe(200);
+      expect(res.body.user.isDemo).toBe(true);
     });
   });
 

@@ -17,6 +17,7 @@ describe('Member API', () => {
   let workspace: any;
 
   beforeAll(async () => {
+    await prisma.auditLog.deleteMany();
     await prisma.workspaceMember.deleteMany();
     await prisma.workspace.deleteMany();
     await prisma.user.deleteMany();
@@ -56,14 +57,20 @@ describe('Member API', () => {
       expect(res.status).toBe(403);
     });
 
-    it('should prevent ADMIN from granting OWNER', async () => {
-      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: admin.id });
+    it('should allow OWNER to promote EDITOR to ADMIN', async () => {
+      (auth.verifyIdToken as jest.Mock).mockResolvedValue({ uid: owner.id });
       const res = await request(app)
         .patch(`/api/workspaces/${workspace.id}/members/${editor.id}`)
         .set('Authorization', 'Bearer token')
-        .send({ role: Role.OWNER });
+        .send({ role: Role.ADMIN });
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'MEMBER_ROLE_UPDATED', resource: editor.id }
+      });
+      expect(audit).toBeTruthy();
+      expect((audit!.metadata as any).newRole).toBe(Role.ADMIN);
     });
 
     it('should prevent OWNER from demoting themselves if last OWNER', async () => {
@@ -103,6 +110,11 @@ describe('Member API', () => {
         .set('Authorization', 'Bearer token');
 
       expect(res.status).toBe(200);
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'MEMBER_REMOVED', resource: editor.id }
+      });
+      expect(audit).toBeTruthy();
     });
   });
 });

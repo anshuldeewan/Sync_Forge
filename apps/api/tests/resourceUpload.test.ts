@@ -20,6 +20,7 @@ describe('Resource Upload & Download API', () => {
   const storage = new LocalStorageProvider();
 
   beforeAll(async () => {
+    await prisma.auditLog.deleteMany();
     await prisma.fileAsset.deleteMany();
     await prisma.resource.deleteMany();
     await prisma.project.deleteMany();
@@ -76,6 +77,12 @@ describe('Resource Upload & Download API', () => {
       expect(asset).toBeDefined();
       expect(asset?.filename).toBe('test.txt');
       expect(asset?.size).toBeGreaterThan(0);
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'RESOURCE_UPLOADED', resource: res.body.resource.id }
+      });
+      expect(audit).toBeTruthy();
+      expect((audit!.metadata as any).filename).toBe('test.txt');
     });
 
     it('should upload a file into a specific folder', async () => {

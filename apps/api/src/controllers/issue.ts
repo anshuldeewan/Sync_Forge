@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthorizedRequest } from '../middleware/rbac';
 import prisma from '@syncforge/db';
 import { IssueStatus, IssuePriority } from '@prisma/client';
+import { AuditService, AuditEventAction } from '../services/audit';
 
 export const listIssues = async (req: AuthorizedRequest, res: Response) => {
   try {
@@ -69,32 +70,44 @@ export const createIssue = async (req: AuthorizedRequest, res: Response) => {
       }
     }
 
-    const issue = await prisma.issue.create({
-      data: {
-        projectId,
-        authorId: req.user!.id,
-        assigneeId,
-        title,
-        description,
-        status: status || 'OPEN',
-        priority: priority || 'MEDIUM',
-        linkedSnippet
-      },
-      include: {
-        author: { select: { id: true, displayName: true } },
-        assignee: { select: { id: true, displayName: true } },
-      }
-    });
-
-    if (assigneeId && assigneeId !== req.user!.id) {
-      await prisma.notification.create({
+    const issue = await prisma.$transaction(async (tx) => {
+      const created = await tx.issue.create({
         data: {
-          userId: assigneeId,
-          type: 'ISSUE_ASSIGNED',
-          message: `You were assigned to issue "${issue.title}"`
+          projectId,
+          authorId: req.user!.id,
+          assigneeId,
+          title,
+          description,
+          status: status || 'OPEN',
+          priority: priority || 'MEDIUM',
+          linkedSnippet
+        },
+        include: {
+          author: { select: { id: true, displayName: true } },
+          assignee: { select: { id: true, displayName: true } },
         }
       });
-    }
+
+      if (assigneeId && assigneeId !== req.user!.id) {
+        await tx.notification.create({
+          data: {
+            userId: assigneeId,
+            type: 'ISSUE_ASSIGNED',
+            message: `You were assigned to issue "${created.title}"`
+          }
+        });
+      }
+
+      await AuditService.logEvent({
+        workspaceId,
+        userId: req.user!.id,
+        action: AuditEventAction.ISSUE_CREATED,
+        resource: created.id,
+        metadata: { priority: created.priority, assigneeId: created.assigneeId }
+      }, tx);
+
+      return created;
+    });
 
     return res.status(201).json({ issue });
   } catch (error) {

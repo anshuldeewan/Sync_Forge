@@ -4,6 +4,7 @@ import { AuthorizedRequest } from '../middleware/rbac';
 import prisma from '@syncforge/db';
 import { Role } from '@syncforge/db';
 import { z } from 'zod';
+import { AuditService, AuditEventAction } from '../services/audit';
 
 const createWorkspaceSchema = z.object({
   name: z.string().min(1, 'Workspace name is required').max(100)
@@ -50,6 +51,15 @@ export const createWorkspace = async (req: AuthenticatedRequest, res: Response) 
           members: true
         }
       });
+
+      await AuditService.logEvent({
+        workspaceId: ws.id,
+        userId: req.user!.id,
+        action: AuditEventAction.WORKSPACE_CREATED,
+        resource: ws.id,
+        metadata: { name: trimmedName }
+      }, tx);
+
       return ws;
     });
 
@@ -139,9 +149,21 @@ export const updateWorkspace = async (req: AuthorizedRequest, res: Response) => 
       return res.status(409).json({ error: { code: 'CONFLICT', message: 'A workspace with this name already exists' } });
     }
 
-    const workspace = await prisma.workspace.update({
-      where: { id: workspaceId },
-      data: { name: trimmedName }
+    const workspace = await prisma.$transaction(async (tx) => {
+      const ws = await tx.workspace.update({
+        where: { id: workspaceId },
+        data: { name: trimmedName }
+      });
+      
+      await AuditService.logEvent({
+        workspaceId: ws.id,
+        userId: req.user!.id,
+        action: AuditEventAction.WORKSPACE_UPDATED,
+        resource: ws.id,
+        metadata: { newName: trimmedName }
+      }, tx);
+
+      return ws;
     });
 
     res.json({ workspace });
@@ -155,9 +177,18 @@ export const deleteWorkspace = async (req: AuthorizedRequest, res: Response) => 
   try {
     const { workspaceId } = req.params;
 
-    await prisma.workspace.update({
-      where: { id: workspaceId },
-      data: { isDeleted: true }
+    await prisma.$transaction(async (tx) => {
+      await tx.workspace.update({
+        where: { id: workspaceId },
+        data: { isDeleted: true }
+      });
+
+      await AuditService.logEvent({
+        workspaceId,
+        userId: req.user!.id,
+        action: AuditEventAction.WORKSPACE_DELETED,
+        resource: workspaceId
+      }, tx);
     });
 
     res.json({ success: true });

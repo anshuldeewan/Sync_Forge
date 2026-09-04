@@ -6,6 +6,7 @@ import { LocalStorageProvider } from '../services/storage/LocalStorageProvider';
 import { extractZipToResources } from '../services/zip/extractor';
 import { randomUUID } from 'crypto';
 import path from 'path';
+import { AuditService, AuditEventAction } from '../services/audit';
 
 const storage = new LocalStorageProvider();
 const FORBIDDEN_EXTENSIONS = ['.exe', '.bat', '.sh', '.cmd', '.msi', '.vbs', '.php'];
@@ -121,6 +122,14 @@ export const safeUploadResource = async (req: AuthorizedRequest, res: Response) 
             message: 'Initial upload'
           }
         });
+
+        await AuditService.logEvent({
+          workspaceId,
+          userId: req.user!.id,
+          action: AuditEventAction.RESOURCE_UPLOADED,
+          resource: resNode.id,
+          metadata: { filename: trimmedName, size: file.size, mimeType: file.mimetype }
+        }, tx);
 
         return resNode;
       });

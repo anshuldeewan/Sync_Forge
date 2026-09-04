@@ -3,7 +3,7 @@ import { AuthorizedRequest } from '../middleware/rbac';
 import prisma from '@syncforge/db';
 import { Role } from '@syncforge/db';
 import { z } from 'zod';
-
+import { AuditService, AuditEventAction } from '../services/audit';
 const updateMemberSchema = z.object({
   role: z.nativeEnum(Role)
 });
@@ -83,9 +83,21 @@ export const updateMemberRole = async (req: AuthorizedRequest, res: Response) =>
       }
     }
 
-    const updated = await prisma.workspaceMember.update({
-      where: { workspaceId_userId: { workspaceId, userId } },
-      data: { role: newRole }
+    const updated = await prisma.$transaction(async (tx) => {
+      const member = await tx.workspaceMember.update({
+        where: { workspaceId_userId: { workspaceId, userId } },
+        data: { role: newRole }
+      });
+
+      await AuditService.logEvent({
+        workspaceId,
+        userId: req.user!.id,
+        action: AuditEventAction.MEMBER_ROLE_UPDATED,
+        resource: userId,
+        metadata: { userId, newRole }
+      }, tx);
+
+      return member;
     });
 
     res.json({ member: updated });
@@ -123,8 +135,18 @@ export const removeMember = async (req: AuthorizedRequest, res: Response) => {
       }
     }
 
-    await prisma.workspaceMember.delete({
-      where: { workspaceId_userId: { workspaceId, userId } }
+    await prisma.$transaction(async (tx) => {
+      await tx.workspaceMember.delete({
+        where: { workspaceId_userId: { workspaceId, userId } }
+      });
+
+      await AuditService.logEvent({
+        workspaceId,
+        userId: req.user!.id,
+        action: AuditEventAction.MEMBER_REMOVED,
+        resource: userId,
+        metadata: { userId }
+      }, tx);
     });
 
     res.json({ success: true });

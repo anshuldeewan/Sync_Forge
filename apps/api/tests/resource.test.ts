@@ -16,6 +16,7 @@ describe('Resource API', () => {
   let project: any;
 
   beforeAll(async () => {
+    await prisma.auditLog.deleteMany();
     await prisma.resource.deleteMany();
     await prisma.page.deleteMany();
     await prisma.project.deleteMany();
@@ -247,6 +248,11 @@ describe('Resource API', () => {
 
       expect(checkParent?.isDeleted).toBe(true);
       expect(checkChild?.isDeleted).toBe(true);
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'RESOURCE_DELETED', resource: parentFolder.id }
+      });
+      expect(audit).toBeTruthy();
     });
   });
 });

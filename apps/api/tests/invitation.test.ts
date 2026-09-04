@@ -17,6 +17,7 @@ describe('Invitation API', () => {
   let workspace: any;
 
   beforeAll(async () => {
+    await prisma.auditLog.deleteMany();
     await prisma.workspaceInvitation.deleteMany();
     await prisma.workspaceMember.deleteMany();
     await prisma.workspace.deleteMany();
@@ -51,6 +52,12 @@ describe('Invitation API', () => {
       expect(res.body.invitation.email).toBe('new@test.com');
       expect(res.body.invitation.token).toBeDefined();
       expect(res.body.inviteUrl).toContain('/invite/');
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'MEMBER_INVITED', workspaceId: workspace.id }
+      });
+      expect(audit).toBeTruthy();
+      expect((audit!.metadata as any).email).toBe('new@test.com');
     });
 
     it('should reject inviting as OWNER', async () => {

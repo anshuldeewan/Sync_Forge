@@ -5,6 +5,9 @@ import { requireAuth } from '../src/middleware/auth';
 import prisma from '@syncforge/db';
 
 jest.mock('@syncforge/db', () => ({
+  $transaction: jest.fn().mockImplementation(async (callback) => {
+    return callback(require('@syncforge/db'));
+  }),
   issue: {
     findMany: jest.fn(),
     create: jest.fn(),
@@ -13,7 +16,17 @@ jest.mock('@syncforge/db', () => ({
     delete: jest.fn()
   },
   workspaceMember: { findUnique: jest.fn() },
-  notification: { create: jest.fn() }
+  notification: { create: jest.fn() },
+  auditLog: { create: jest.fn() }
+}));
+
+jest.mock('../src/services/audit', () => ({
+  AuditService: {
+    logEvent: jest.fn()
+  },
+  AuditEventAction: {
+    ISSUE_CREATED: 'ISSUE_CREATED'
+  }
 }));
 
 jest.mock('../src/middleware/auth', () => ({
@@ -55,6 +68,12 @@ describe('Issues API', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.issue.title).toBe('Fix bug');
+    
+    const { AuditService } = require('../src/services/audit');
+    expect(AuditService.logEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'ISSUE_CREATED', resource: 'issue1' }),
+      expect.anything()
+    );
   });
 
   it('prevents VIEWER from creating an issue', async () => {
