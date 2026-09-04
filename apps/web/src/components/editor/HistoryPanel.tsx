@@ -56,10 +56,10 @@ export function HistoryPanel({ workspaceId, projectId, resourceId, onClose, onRe
   }, [resourceId]);
 
   return (
-    <div className="w-80 border-l border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 flex flex-col h-full absolute right-0 top-0 z-20 shadow-lg">
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-800">
-        <h3 className="font-semibold text-gray-800 dark:text-gray-200">Version History</h3>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+    <div className="w-80 border-l border-border bg-card/95 backdrop-blur-sm flex flex-col h-full absolute right-0 top-0 z-20 shadow-xl animate-in slide-in-from-right duration-300">
+      <div className="flex items-center justify-between p-4 border-b border-border bg-muted/10">
+        <h3 className="font-semibold text-foreground">Version History</h3>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -73,25 +73,28 @@ export function HistoryPanel({ workspaceId, projectId, resourceId, onClose, onRe
         ) : (
           <>
             {revisions.map((rev) => (
-              <div key={rev.id} className="bg-white dark:bg-zinc-800 p-3 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-sm">
+              <div key={rev.id} className="bg-background p-3 rounded-lg border border-border shadow-sm group hover:border-primary/30 transition-colors">
                 <div className="flex justify-between items-start mb-2">
-                  <span className="font-medium text-sm text-gray-800 dark:text-gray-200">Version {rev.versionNumber}</span>
-                  <span className="text-xs text-gray-500" title={new Date(rev.createdAt).toLocaleString()}>
+                  <span className="font-medium text-sm text-foreground">Version {rev.versionNumber}</span>
+                  <span className="text-xs text-muted-foreground" title={new Date(rev.createdAt).toLocaleString()}>
                     {new Date(rev.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                  by {rev.author.displayName}
+                <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center text-[9px] text-primary font-bold">
+                    {rev.author.displayName.charAt(0)}
+                  </div>
+                  {rev.author.displayName}
                 </div>
                 {rev.message && (
-                  <div className="text-xs text-gray-700 dark:text-gray-300 italic bg-gray-100 dark:bg-zinc-900/50 p-2 rounded mb-3">
+                  <div className="text-xs text-muted-foreground italic bg-muted/50 p-2 rounded-md mb-3 border border-border/50">
                     "{rev.message}"
                   </div>
                 )}
-                <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-zinc-700/50">
+                <div className="flex gap-2 mt-2 pt-2 border-t border-border/50">
                   <button 
                     onClick={() => onPreview(rev.id)}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex-1 text-center"
+                    className="text-xs text-primary hover:underline flex-1 text-center font-medium opacity-80 hover:opacity-100 transition-opacity"
                   >
                     Preview / Diff
                   </button>
@@ -102,7 +105,7 @@ export function HistoryPanel({ workspaceId, projectId, resourceId, onClose, onRe
                           onRestore(rev.id);
                         }
                       }}
-                      className="text-xs text-red-600 dark:text-red-400 hover:underline flex-1 text-center"
+                      className="text-xs text-destructive hover:underline flex-1 text-center font-medium opacity-80 hover:opacity-100 transition-opacity"
                     >
                       Restore
                     </button>
@@ -117,7 +120,7 @@ export function HistoryPanel({ workspaceId, projectId, resourceId, onClose, onRe
                   setPage(nextPage);
                   loadRevisions(nextPage);
                 }}
-                className="w-full py-2 text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                className="w-full py-2 text-sm text-primary font-medium hover:bg-accent rounded-md transition-colors border border-transparent hover:border-border"
               >
                 {loading ? 'Loading...' : 'Load more'}
               </button>

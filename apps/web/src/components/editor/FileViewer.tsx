@@ -14,6 +14,8 @@ import { getApiUrl } from '../../config/api';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { getFileCategory, getFileCategoryDisplayName, FileCategory } from '../../utils/fileTypes';
 import { HistoryPanel } from './HistoryPanel';
+import { Button } from '../ui/button';
+import { History } from 'lucide-react';
 
 interface FileViewerProps {
   workspaceId: string;
@@ -129,35 +131,46 @@ export function FileViewer({ workspaceId, projectId, resourceId, filename, initi
   };
 
   return (
-    <div className="flex flex-col h-[600px] border border-gray-200 dark:border-zinc-800 rounded overflow-hidden bg-white dark:bg-black relative">
-      <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900">
-        <div className="flex items-center gap-3 truncate max-w-[70%]">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+    <div className="flex flex-col h-full border border-border shadow-sm rounded-xl overflow-hidden bg-card relative animate-in fade-in duration-500">
+      <div className="flex items-center justify-between p-3 border-b border-border/50 bg-muted/10">
+        <div className="flex items-center gap-3 truncate max-w-[70%] px-1">
+          <span className="text-sm font-semibold text-foreground truncate">
             {filename}
           </span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 dark:bg-zinc-700 text-gray-600 dark:text-gray-300">
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 border border-border text-muted-foreground uppercase tracking-wider font-bold">
             {displayName}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button 
+          <Button 
+            variant="secondary"
+            size="sm"
             onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-zinc-600 flex-shrink-0"
+            className="h-8"
           >
+            <History className="h-3.5 w-3.5 mr-2" />
             History
-          </button>
-          <button 
+          </Button>
+          <Button 
+            variant="default"
+            size="sm"
             onClick={handleDownload}
-            className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex-shrink-0"
+            className="h-8"
           >
-            <Download size={14} /> Download
-          </button>
+            <Download className="h-3.5 w-3.5 mr-2" /> 
+            Download
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-gray-100 dark:bg-zinc-900 relative">
+      <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-muted/5 relative">
         {isLoadingBlob && requiresBlob && (
-          <div className="text-gray-500">Loading preview...</div>
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm font-medium">Loading preview...</span>
+            </div>
+          </div>
         )}
 
         {!isLoadingBlob && isImage && blobUrl && (
@@ -207,21 +220,23 @@ export function FileViewer({ workspaceId, projectId, resourceId, filename, initi
         )}
 
         {(!requiresBlob) || (!isLoadingBlob && requiresBlob && !blobUrl) ? (
-          <div className="flex flex-col items-center gap-4 text-gray-500">
-            <FileIcon size={48} className="text-gray-400" />
-            <div className="text-center">
-              <p className="font-medium text-gray-700 dark:text-gray-300 mb-1">{filename}</p>
-              <p className="text-sm">
+          <div className="flex flex-col items-center gap-4 text-muted-foreground bg-background p-8 rounded-xl border border-border shadow-sm max-w-sm w-full text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-2">
+               <FileIcon size={24} className="text-muted-foreground/50" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground mb-1">{filename}</p>
+              <p className="text-sm text-muted-foreground/80">
                 {requiresBlob ? 'Failed to load preview.' : `Preview not supported for this file type.`}
               </p>
-              {!requiresBlob && <p className="text-xs mt-1 text-gray-400">{displayName}</p>}
+              {!requiresBlob && <p className="text-[10px] mt-2 font-bold uppercase tracking-wider text-muted-foreground/50">{displayName}</p>}
             </div>
-            <button 
+            <Button 
               onClick={handleDownload}
-              className="mt-2 flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="mt-4 w-full"
             >
-              <Download size={16} /> Download File
-            </button>
+              <Download size={14} className="mr-2" /> Download File
+            </Button>
           </div>
         ) : null}
       </div>

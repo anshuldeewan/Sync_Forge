@@ -1,6 +1,8 @@
 import { DiffEditor } from '@monaco-editor/react';
 import { useEffect, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { Button } from '../ui/button';
+import { X } from 'lucide-react';
 
 interface DiffViewerProps {
   workspaceId: string;
@@ -80,19 +82,32 @@ export function DiffViewer({ workspaceId, projectId, resourceId, versionId, curr
   }, [workspaceId, projectId, resourceId, versionId]);
 
   return (
-    <div className="absolute inset-0 z-30 bg-white dark:bg-zinc-900 flex flex-col shadow-xl">
-       <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50">
+    <div className="absolute inset-0 z-30 bg-background flex flex-col shadow-xl animate-in fade-in duration-300">
+       <div className="flex justify-between items-center px-4 py-3 border-b border-border/50 bg-muted/10">
           <div>
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200">Historical Comparison</h3>
-            <p className="text-xs text-gray-500">Comparing Version with Current</p>
+            <h3 className="font-semibold text-foreground">Historical Comparison</h3>
+            <p className="text-xs text-muted-foreground">Comparing Version with Current</p>
           </div>
-          <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 rounded text-sm font-medium">
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={onClose} 
+            className="h-8"
+          >
+            <X className="h-3.5 w-3.5 mr-2" />
             Close Diff
-          </button>
+          </Button>
        </div>
        <div className="flex-1 relative">
-         {loading && <div className="absolute inset-0 flex items-center justify-center">Loading diff...</div>}
-         {error && <div className="absolute inset-0 flex items-center justify-center text-red-500">{error}</div>}
+         {loading && (
+           <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
+             <div className="flex items-center gap-3 text-muted-foreground">
+               <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+               <span className="text-sm font-medium">Loading diff...</span>
+             </div>
+           </div>
+         )}
+         {error && <div className="absolute inset-0 flex items-center justify-center text-destructive font-medium">{error}</div>}
          {!loading && !error && historicalContent !== null && (
             <DiffEditor
               height="100%"

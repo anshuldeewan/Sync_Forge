@@ -13,6 +13,9 @@ import { useAuth } from '../../context/AuthContext';
 import { CommentMark } from './extensions/CommentMark';
 import { createMentionSuggestion } from './extensions/mentionSuggestion';
 import { CommentSidebar } from './CommentSidebar';
+import { Button } from '../ui/button';
+import { History, Save, MessageSquarePlus } from 'lucide-react';
+import { HistoryPanel } from './HistoryPanel';
 
 interface EditorProps {
   workspaceId: string;
@@ -51,7 +54,7 @@ function TiptapEditor({ provider, ydoc, user, role, workspaceId, fetchWithAuth, 
       }),
       Mention.configure({
         HTMLAttributes: {
-          class: 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded px-1 font-medium',
+          class: 'bg-primary/10 text-primary rounded px-1.5 py-0.5 font-medium border border-primary/20',
         },
         suggestion: createMentionSuggestion(workspaceId, fetchWithAuth)
       }),
@@ -111,39 +114,40 @@ function TiptapEditor({ provider, ydoc, user, role, workspaceId, fetchWithAuth, 
     <div className="flex h-full">
       <div className="flex-1 overflow-y-auto prose dark:prose-invert max-w-none pr-4">
         {editor && isEditable && (
-          <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }} className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-lg rounded-lg flex overflow-hidden">
+          <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }} className="bg-popover text-popover-foreground border border-border shadow-md rounded-lg flex overflow-hidden animate-in fade-in zoom-in-95">
             {!showCommentInput ? (
               <button
                 onClick={() => setShowCommentInput(true)}
-                className="px-3 py-1.5 text-sm font-medium hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
               >
-                💬 Comment
+                <MessageSquarePlus className="h-4 w-4" /> Comment
               </button>
             ) : (
-              <div className="flex p-1">
+              <div className="flex p-1 gap-1 items-center bg-popover">
                 <input
                   type="text"
                   autoFocus
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Type comment..."
-                  className="px-2 py-1 text-sm bg-transparent border-none focus:ring-0 outline-none w-48"
+                  className="px-2 py-1 text-sm bg-background border border-input rounded-sm focus:outline-none focus:ring-1 focus:ring-primary w-48"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleAddComment();
                     if (e.key === 'Escape') setShowCommentInput(false);
                   }}
                 />
-                <button 
+                <Button 
+                  size="sm"
                   onClick={handleAddComment}
-                  className="px-2 py-1 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600 ml-1"
+                  className="h-7 px-2 text-xs"
                 >
                   Send
-                </button>
+                </Button>
               </div>
             )}
           </BubbleMenu>
         )}
-        <EditorContent editor={editor} className="min-h-full cursor-text pb-20" />
+        <EditorContent editor={editor} className="min-h-full cursor-text pb-20 focus-visible:outline-none" />
       </div>
       <CommentSidebar 
         workspaceId={workspaceId}
@@ -157,7 +161,7 @@ function TiptapEditor({ provider, ydoc, user, role, workspaceId, fetchWithAuth, 
   );
 }
 
-import { HistoryPanel } from './HistoryPanel';
+
 
 export function Editor({ workspaceId, projectId, pageId, initialShowHistory = false }: EditorProps & { initialShowHistory?: boolean }) {
   const { fetchWithAuth } = useWorkspace();
@@ -282,46 +286,60 @@ export function Editor({ workspaceId, projectId, pageId, initialShowHistory = fa
   };
 
   return (
-    <div className="bg-white dark:bg-black rounded border border-gray-200 dark:border-zinc-800 p-6 flex flex-col h-[600px] relative overflow-hidden">
-      <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-zinc-800 pb-2">
-        <h2 className="text-xl font-semibold">Page Editor</h2>
+    <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-full relative overflow-hidden animate-in fade-in duration-500">
+      <div className="flex justify-between items-center px-4 py-3 border-b border-border/50 bg-muted/10">
+        <h2 className="text-sm font-semibold text-foreground">Page Editor</h2>
         <div className="flex items-center gap-4">
            <div className="flex items-center gap-2">
-             <div className={`w-2 h-2 rounded-full ${status === 'Connected' || status === 'Revision Saved!' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-             <span className="text-sm text-gray-500">{status}</span>
+             <div className={`w-2 h-2 rounded-full ${status === 'Connected' || status === 'Revision Saved!' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-destructive'}`}></div>
+             <span className="text-xs text-muted-foreground font-medium">{status}</span>
            </div>
-           {!isReadOnly && (
-             <button 
-               onClick={handleSaveRevision}
-               disabled={isSavingRevision}
-               className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors disabled:opacity-50"
+           <div className="flex items-center gap-2">
+             {!isReadOnly && (
+               <Button 
+                 variant="outline"
+                 size="sm"
+                 onClick={handleSaveRevision}
+                 disabled={isSavingRevision}
+                 className="h-8"
+               >
+                 <Save className="h-3.5 w-3.5 mr-2" />
+                 {isSavingRevision ? 'Saving...' : 'Save Version'}
+               </Button>
+             )}
+             <Button 
+               variant="secondary"
+               size="sm"
+               onClick={() => setShowHistory(!showHistory)}
+               className="h-8"
              >
-               Save Version
-             </button>
-           )}
-           <button 
-             onClick={() => setShowHistory(!showHistory)}
-             className="text-xs px-2 py-1 bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-zinc-600 transition-colors"
-           >
-             History
-           </button>
+               <History className="h-3.5 w-3.5 mr-2" />
+               History
+             </Button>
+           </div>
         </div>
       </div>
-      
-      {provider ? (
-        <TiptapEditor 
-          provider={provider} 
-          ydoc={ydocRef.current} 
-          user={user} 
-          role={role}
-          workspaceId={workspaceId}
-          projectId={projectId}
-          pageId={pageId}
-          fetchWithAuth={fetchWithAuth} 
-        />
-      ) : (
-        <div className="flex-1 text-gray-500 animate-pulse">Initializing collaboration...</div>
-      )}
+      <div className="flex-1 overflow-hidden p-6 relative">
+        {provider ? (
+          <TiptapEditor 
+            provider={provider} 
+            ydoc={ydocRef.current} 
+            user={user} 
+            role={role}
+            workspaceId={workspaceId}
+            projectId={projectId}
+            pageId={pageId}
+            fetchWithAuth={fetchWithAuth} 
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm font-medium">Initializing collaboration...</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {showHistory && resourceIdForHistory && (
         <HistoryPanel 

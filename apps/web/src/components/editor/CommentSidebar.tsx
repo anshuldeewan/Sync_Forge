@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { MessageSquare, Check, Trash2 } from 'lucide-react';
+import { Button } from '../ui/button';
 
 interface Comment {
   id: string;
@@ -81,8 +83,12 @@ export function CommentSidebar({ pageId, projectId, workspaceId, activeCommentId
   const unresolvedComments = comments.filter(c => !c.resolved);
 
   return (
-    <div className="w-80 bg-gray-50 dark:bg-zinc-900 border-l border-gray-200 dark:border-zinc-800 p-4 h-full overflow-y-auto">
-      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Comments ({unresolvedComments.length})</h3>
+    <div className="w-80 bg-muted/5 border-l border-border p-4 h-full overflow-y-auto animate-in slide-in-from-right duration-300">
+      <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+        <MessageSquare className="h-4 w-4" />
+        Comments 
+        <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded-full text-xs">{unresolvedComments.length}</span>
+      </h3>
       {loading ? (
         <div className="text-sm text-gray-500 animate-pulse">Loading...</div>
       ) : unresolvedComments.length === 0 ? (
@@ -92,29 +98,44 @@ export function CommentSidebar({ pageId, projectId, workspaceId, activeCommentId
           {unresolvedComments.map((comment) => (
             <div 
               key={comment.id} 
-              className={`p-3 rounded-lg border text-sm shadow-sm transition-colors ${activeCommentId === comment.id ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-700/50' : 'bg-white border-gray-200 dark:bg-black dark:border-zinc-800'}`}
+              className={`p-3 rounded-lg border text-sm shadow-sm transition-all duration-200 ${
+                activeCommentId === comment.id 
+                  ? 'bg-accent border-primary/50 shadow-md ring-1 ring-primary/20' 
+                  : 'bg-background border-border hover:border-primary/30'
+              }`}
             >
               <div className="flex justify-between items-start mb-2">
-                <span className="font-medium">{comment.author.displayName}</span>
-                <span className="text-xs text-gray-400">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                <div className="flex items-center gap-1.5 font-medium text-foreground">
+                  <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] text-primary">
+                    {comment.author.displayName.charAt(0)}
+                  </div>
+                  {comment.author.displayName}
+                </div>
+                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{new Date(comment.createdAt).toLocaleDateString()}</span>
               </div>
-              <p className="text-gray-700 dark:text-gray-300 mb-3">{comment.content}</p>
+              <p className="text-muted-foreground mb-3 text-sm">{comment.content}</p>
               
               {role !== 'VIEWER' && (
-                <div className="flex gap-2">
-                  <button 
+                <div className="flex gap-2 pt-2 border-t border-border/50">
+                  <Button 
+                    variant="outline"
+                    size="sm"
                     onClick={() => resolveComment(comment.id)}
-                    className="text-xs text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded"
+                    className="h-7 text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900 hover:bg-emerald-500/20"
                   >
+                    <Check className="h-3 w-3 mr-1" />
                     Resolve
-                  </button>
+                  </Button>
                   {/* Delete button only if admin/owner or author... just show for all and let API reject if unauthorized */}
-                  <button 
+                  <Button 
+                    variant="outline"
+                    size="sm"
                     onClick={() => deleteComment(comment.id)}
-                    className="text-xs text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded"
+                    className="h-7 text-xs bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20"
                   >
+                    <Trash2 className="h-3 w-3 mr-1" />
                     Delete
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
