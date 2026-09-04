@@ -43,12 +43,12 @@ export function WorkspaceCard({ workspace }: WorkspaceCardProps) {
       )}
 
       <CardFooter className="mt-auto pt-4">
-        <Link href={`/workspaces/${workspace.id}`} passHref legacyBehavior>
-          <Button variant="secondary" className="w-full group">
+        <Button variant="secondary" className="w-full group" asChild>
+          <Link href={`/workspaces/${workspace.id}`}>
             Open Workspace
             <ChevronRight className="ml-2 h-4 w-4 opacity-70 group-hover:translate-x-0.5 transition-transform" />
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </CardFooter>
     </Card>
   );

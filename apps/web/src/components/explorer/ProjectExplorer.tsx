@@ -251,20 +251,20 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
     const category = getFileCategory(filename);
     switch (category) {
       case FileCategory.TEXT:
-        return <FileCode size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />;
+        return <FileCode size={16} className="text-blue-500 shrink-0" />;
       case FileCategory.IMAGE:
-        return <ImageIcon size={16} className="text-pink-500 dark:text-pink-400 shrink-0" />;
+        return <ImageIcon size={16} className="text-pink-500 shrink-0" />;
       case FileCategory.VIDEO:
-        return <FileVideo size={16} className="text-purple-500 dark:text-purple-400 shrink-0" />;
+        return <FileVideo size={16} className="text-purple-500 shrink-0" />;
       case FileCategory.AUDIO:
-        return <FileAudio size={16} className="text-yellow-600 dark:text-yellow-400 shrink-0" />;
+        return <FileAudio size={16} className="text-yellow-500 shrink-0" />;
       case FileCategory.PDF:
       case FileCategory.DOCUMENT:
-        return <FileText size={16} className="text-red-500 dark:text-red-400 shrink-0" />;
+        return <FileText size={16} className="text-red-500 shrink-0" />;
       case FileCategory.ARCHIVE:
-        return <FileArchive size={16} className="text-orange-500 dark:text-orange-400 shrink-0" />;
+        return <FileArchive size={16} className="text-orange-500 shrink-0" />;
       default:
-        return <FileIcon size={16} className="text-gray-500 dark:text-gray-400 shrink-0" />;
+        return <FileIcon size={16} className="text-muted-foreground shrink-0" />;
     }
   };
 
@@ -282,9 +282,9 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
       const hasChildren = resources.some(r => r.parentId === resource.id);
       
       return (
-        <div key={resource.id}>
+        <div key={resource.id} className="my-0.5">
           <div 
-            className={`group flex items-center justify-between hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer py-1 text-sm rounded pr-2 select-none ${activeFolderId === resource.id ? 'bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500/20' : ''} ${dragOverId === resource.id ? 'bg-blue-100 dark:bg-blue-900/40 border border-blue-400' : ''}`}
+            className={`group flex items-center justify-between hover:bg-accent hover:text-accent-foreground cursor-pointer py-1.5 text-sm rounded-md pr-2 select-none transition-colors ${activeFolderId === resource.id ? 'bg-accent text-accent-foreground font-medium' : 'text-muted-foreground'} ${dragOverId === resource.id ? 'ring-1 ring-primary bg-primary/5' : ''}`}
             style={{ paddingLeft }}
             onDragOver={(e) => {
               if (isFolder) {
@@ -330,14 +330,14 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
                 )}
               </div>
               
-              {isFolder ? (isExpanded ? <FolderOpen size={16} className="text-blue-500 shrink-0" /> : <Folder size={16} className="text-blue-500 shrink-0" />) :
-               isPage ? <FileText size={16} className="text-gray-500 dark:text-gray-400 shrink-0" /> :
+              {isFolder ? (isExpanded ? <FolderOpen size={16} className="text-primary shrink-0" /> : <Folder size={16} className="text-primary shrink-0" />) :
+               isPage ? <FileText size={16} className="text-muted-foreground shrink-0" /> :
                renderFileIcon(resource.name)}
               
               {isRenaming?.id === resource.id ? (
                 <input 
                   autoFocus
-                  className="bg-white dark:bg-zinc-900 border border-blue-500 rounded px-1 w-full text-sm outline-none"
+                  className="bg-background border border-primary/50 ring-1 ring-primary/20 rounded-sm px-1.5 py-0.5 w-full text-sm outline-none text-foreground"
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   onBlur={handleRename}
@@ -352,23 +352,23 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
               )}
             </div>
             <button 
-              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded transition-opacity"
+              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-background rounded transition-opacity"
               onClick={(e) => handleContextMenu(e, resource.id)}
             >
-              <MoreVertical size={14} className="text-gray-500" />
+              <MoreVertical size={14} className="text-muted-foreground" />
             </button>
           </div>
             
           {/* Input field for creating a new resource inside this folder */}
-          {isExpanded && isCreating?.parentId === resource.id && (
+           {isExpanded && isCreating?.parentId === resource.id && (
              <div className="flex items-center gap-1.5 py-1 pr-2" style={{ paddingLeft: `calc(${paddingLeft} + 1rem)` }}>
-                <div className="w-4 h-4 shrink-0" /> {/* Chevron placeholder */}
-                {isCreating.type === 'FOLDER' ? <Folder size={16} className="text-blue-500 shrink-0" /> : 
-                 isCreating.type === 'PAGE' ? <FileText size={16} className="text-gray-500 shrink-0" /> : 
-                 <FileIcon size={16} className="text-gray-500 shrink-0" />}
+                <div className="w-4 h-4 shrink-0" />
+                {isCreating.type === 'FOLDER' ? <Folder size={16} className="text-primary shrink-0" /> : 
+                 isCreating.type === 'PAGE' ? <FileText size={16} className="text-muted-foreground shrink-0" /> : 
+                 <FileIcon size={16} className="text-muted-foreground shrink-0" />}
                 <input 
                   autoFocus
-                  className="bg-white dark:bg-zinc-900 border border-blue-500 rounded px-1 w-full text-sm outline-none"
+                  className="bg-background border border-primary/50 ring-1 ring-primary/20 rounded-sm px-1.5 py-0.5 w-full text-sm outline-none text-foreground"
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   onBlur={() => { if(inputValue.trim()) handleCreate(); else setIsCreating(null); }}
@@ -386,10 +386,10 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
     });
   };
 
-  if (loading) return <div className="p-4 text-sm text-gray-500">Loading resources...</div>;
+  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading resources...</div>;
 
   return (
-    <div className={`bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded flex flex-col h-full min-h-[500px] ${dragOverId === 'root' ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/10' : ''}`}
+    <div className={`bg-card text-card-foreground flex flex-col h-full min-h-[500px] ${dragOverId === 'root' ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
          onContextMenu={(e) => handleContextMenu(e, null)}
          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverId('root'); }}
          onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); if (dragOverId === 'root') setDragOverId(null); }}
@@ -402,16 +402,15 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
           if (e.target.files && e.target.files.length > 0) {
             handleUpload(e.target.files[0], uploadTargetId);
           }
-          // Reset target
           if (fileInputRef.current) fileInputRef.current.value = '';
         }} 
       />
-      <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-zinc-800 bg-gray-100/50 dark:bg-zinc-900">
-        <h3 className="font-semibold text-sm tracking-wide text-gray-700 dark:text-gray-300">EXPLORER</h3>
+      <div className="flex items-center justify-between p-3 border-b bg-muted/30">
+        <h3 className="font-semibold text-xs tracking-wider text-muted-foreground uppercase">Explorer</h3>
         <div className="flex items-center gap-1">
-          <button title="New Page" onClick={() => { setIsCreating({ type: 'PAGE', parentId: activeFolderId }); setInputValue(''); if (activeFolderId) setExpandedFolders(prev => new Set(prev).add(activeFolderId)); }} className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded"><FileText size={14} /></button>
-          <button title="New Folder" onClick={() => { setIsCreating({ type: 'FOLDER', parentId: activeFolderId }); setInputValue(''); if (activeFolderId) setExpandedFolders(prev => new Set(prev).add(activeFolderId)); }} className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded"><Folder size={14} /></button>
-          <button title="Upload File" onClick={() => { setUploadTargetId(activeFolderId); fileInputRef.current?.click(); }} className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded"><Upload size={14} /></button>
+          <button title="New Page" onClick={() => { setIsCreating({ type: 'PAGE', parentId: activeFolderId }); setInputValue(''); if (activeFolderId) setExpandedFolders(prev => new Set(prev).add(activeFolderId)); }} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"><FileText size={14} /></button>
+          <button title="New Folder" onClick={() => { setIsCreating({ type: 'FOLDER', parentId: activeFolderId }); setInputValue(''); if (activeFolderId) setExpandedFolders(prev => new Set(prev).add(activeFolderId)); }} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"><Folder size={14} /></button>
+          <button title="Upload File" onClick={() => { setUploadTargetId(activeFolderId); fileInputRef.current?.click(); }} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"><Upload size={14} /></button>
         </div>
       </div>
       
@@ -420,16 +419,15 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
       <div className="flex-1 overflow-y-auto py-2" onClick={() => { setIsCreating(null); setIsRenaming(null); setActiveFolderId(null); }}>
         {renderTree(null, 0)}
         
-        {/* Root level create input */}
         {isCreating?.parentId === null && (
-          <div className="flex items-center gap-1.5 py-1 px-2">
+          <div className="flex items-center gap-1.5 py-1 px-2 mt-2">
             <div className="w-4 h-4 shrink-0" />
-            {isCreating.type === 'FOLDER' ? <Folder size={16} className="text-blue-500 shrink-0" /> : 
-             isCreating.type === 'PAGE' ? <FileText size={16} className="text-gray-500 shrink-0" /> : 
-             <FileIcon size={16} className="text-gray-500 shrink-0" />}
+            {isCreating.type === 'FOLDER' ? <Folder size={16} className="text-primary shrink-0" /> : 
+             isCreating.type === 'PAGE' ? <FileText size={16} className="text-muted-foreground shrink-0" /> : 
+             <FileIcon size={16} className="text-muted-foreground shrink-0" />}
             <input 
               autoFocus
-              className="bg-white dark:bg-zinc-900 border border-blue-500 rounded px-1 w-full text-sm outline-none"
+              className="bg-background border border-primary/50 ring-1 ring-primary/20 rounded-sm px-1.5 py-0.5 w-full text-sm outline-none text-foreground"
               value={inputValue}
               onChange={e => setInputValue(e.target.value)}
               onBlur={() => { if(inputValue.trim()) handleCreate(); else setIsCreating(null); }}
@@ -444,36 +442,36 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
 
       {contextMenu && (
         <div 
-          className="fixed bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded shadow-lg py-1 z-50 text-sm min-w-[160px]"
+          className="fixed bg-popover text-popover-foreground border border-border rounded-md shadow-md py-1.5 z-50 text-sm min-w-[200px] animate-in fade-in zoom-in-95 duration-100"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
           {contextMenu.resourceId ? (
-            <>
+            <div className="flex flex-col">
               {resources.find(r => r.id === contextMenu.resourceId)?.type === 'FOLDER' && (
                 <>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                     onClick={() => { setIsCreating({ type: 'PAGE', parentId: contextMenu.resourceId }); setInputValue(''); setContextMenu(null); setExpandedFolders(prev => new Set(prev).add(contextMenu.resourceId!)); }}>
-                    <FileText size={14} /> New Page
+                    <FileText size={14} className="text-muted-foreground" /> New Page
                   </button>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                     onClick={() => { setIsCreating({ type: 'FOLDER', parentId: contextMenu.resourceId }); setInputValue(''); setContextMenu(null); setExpandedFolders(prev => new Set(prev).add(contextMenu.resourceId!)); }}>
-                    <Folder size={14} /> New Folder
+                    <Folder size={14} className="text-muted-foreground" /> New Folder
                   </button>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                     onClick={() => { setIsCreating({ type: 'FILE', parentId: contextMenu.resourceId }); setInputValue(''); setContextMenu(null); setExpandedFolders(prev => new Set(prev).add(contextMenu.resourceId!)); }}>
-                    <FileIcon size={14} /> New File Metadata
+                    <FileIcon size={14} className="text-muted-foreground" /> New File Metadata
                   </button>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                     onClick={() => { setUploadTargetId(contextMenu.resourceId); fileInputRef.current?.click(); setContextMenu(null); setExpandedFolders(prev => new Set(prev).add(contextMenu.resourceId!)); }}>
-                    <Upload size={14} /> Upload File
+                    <Upload size={14} className="text-muted-foreground" /> Upload File
                   </button>
-                  <div className="h-px bg-gray-200 dark:bg-zinc-700 my-1"></div>
+                  <div className="h-px bg-border my-1"></div>
                 </>
               )}
               {resources.find(r => r.id === contextMenu.resourceId)?.type === 'PAGE' && (
                 <>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                     onClick={() => { 
                       const r = resources.find(r => r.id === contextMenu.resourceId);
                       if (r) {
@@ -482,9 +480,9 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
                       }
                       setContextMenu(null); 
                     }}>
-                    <FolderOpen size={14} /> Open
+                    <FolderOpen size={14} className="text-muted-foreground" /> Open
                   </button>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                     onClick={() => { 
                       if (onFileSelect) {
                         const r = resources.find(r => r.id === contextMenu.resourceId);
@@ -492,13 +490,13 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
                       }
                       setContextMenu(null); 
                     }}>
-                    <FileText size={14} /> History
+                    <FileText size={14} className="text-muted-foreground" /> History
                   </button>
                 </>
               )}
               {resources.find(r => r.id === contextMenu.resourceId)?.type === 'FILE' && (
                 <>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                     onClick={() => { 
                       if (onFileSelect) {
                         const r = resources.find(r => r.id === contextMenu.resourceId);
@@ -506,13 +504,13 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
                       }
                       setContextMenu(null); 
                     }}>
-                    <FolderOpen size={14} /> Open
+                    <FolderOpen size={14} className="text-muted-foreground" /> Open
                   </button>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                     onClick={() => { handleDownload(contextMenu.resourceId!); setContextMenu(null); }}>
-                    <Download size={14} /> Download
+                    <Download size={14} className="text-muted-foreground" /> Download
                   </button>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                     onClick={() => { 
                       if (onFileSelect) {
                         const r = resources.find(r => r.id === contextMenu.resourceId);
@@ -520,38 +518,38 @@ export function ProjectExplorer({ workspaceId, projectId, onFileSelect }: Projec
                       }
                       setContextMenu(null); 
                     }}>
-                    <FileText size={14} /> History
+                    <FileText size={14} className="text-muted-foreground" /> History
                   </button>
-                  <div className="h-px bg-gray-200 dark:bg-zinc-700 my-1"></div>
+                  <div className="h-px bg-border my-1"></div>
                 </>
               )}
-              <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+              <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                 onClick={() => { 
                   const r = resources.find(r => r.id === contextMenu.resourceId);
                   if (r) { setIsRenaming(r); setInputValue(r.name); setContextMenu(null); }
                 }}>
-                <Edit2 size={14} /> Rename
+                <Edit2 size={14} className="text-muted-foreground" /> Rename
               </button>
-              <button className="w-full text-left px-4 py-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 flex items-center gap-2"
+              <button className="w-full text-left px-4 py-1.5 hover:bg-destructive/10 text-destructive flex items-center gap-2 transition-colors"
                 onClick={() => { handleDelete(contextMenu.resourceId!); setContextMenu(null); }}>
                 <Trash2 size={14} /> Delete
               </button>
-            </>
+            </div>
           ) : (
-            <>
-              <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+            <div className="flex flex-col">
+              <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                 onClick={() => { setIsCreating({ type: 'PAGE', parentId: null }); setInputValue(''); setContextMenu(null); }}>
-                <FileText size={14} /> New Page
+                <FileText size={14} className="text-muted-foreground" /> New Page
               </button>
-              <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+              <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                 onClick={() => { setIsCreating({ type: 'FOLDER', parentId: null }); setInputValue(''); setContextMenu(null); }}>
-                <Folder size={14} /> New Folder
+                <Folder size={14} className="text-muted-foreground" /> New Folder
               </button>
-              <button className="w-full text-left px-4 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+              <button className="w-full text-left px-4 py-1.5 hover:bg-accent flex items-center gap-2 transition-colors"
                 onClick={() => { setUploadTargetId(null); fileInputRef.current?.click(); setContextMenu(null); }}>
-                <Upload size={14} /> Upload File
+                <Upload size={14} className="text-muted-foreground" /> Upload File
               </button>
-            </>
+            </div>
           )}
         </div>
       )}

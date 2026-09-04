@@ -4,6 +4,10 @@ import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../../context/AuthContext';
 import { useWorkspace } from '../../../../../context/WorkspaceContext';
+import { AppShell } from '../../../../../components/layout/AppShell';
+import { PageHeader } from '../../../../../components/layout/PageHeader';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../../../../components/ui/card';
+import { Button } from '../../../../../components/ui/button';
 
 export default function NewProject() {
   const [name, setName] = useState('');
@@ -13,9 +17,13 @@ export default function NewProject() {
   const params = useParams();
   const { user } = useAuth();
   const { refreshWorkspaces, activeWorkspace } = useWorkspace();
+  
+  const workspaceId = params.workspaceId as string;
 
-  if (activeWorkspace?.id !== params.workspaceId) {
-    router.push('/');
+  if (activeWorkspace?.id !== workspaceId) {
+    // Rely on the outer page layout or effects to manage this ideally, 
+    // but if mismatch, redirect appropriately.
+    router.push(`/workspaces/${workspaceId}`);
     return null;
   }
 
@@ -31,7 +39,7 @@ export default function NewProject() {
       const { getApiUrl } = await import('../../../../../config/api');
       const apiUrl = getApiUrl();
 
-      const res = await fetch(`${apiUrl}/api/workspaces/${params.workspaceId}/projects`, {
+      const res = await fetch(`${apiUrl}/api/workspaces/${workspaceId}/projects`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,7 +54,7 @@ export default function NewProject() {
       }
 
       await refreshWorkspaces();
-      router.push('/'); // Back to dashboard
+      router.push(`/workspaces/${workspaceId}`); // Fixed redirect
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -54,47 +62,58 @@ export default function NewProject() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-zinc-900">
-      <div className="w-full max-w-md bg-white dark:bg-black p-8 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800">
-        <h2 className="text-2xl font-bold mb-6 text-center">Create Project</h2>
+    <AppShell>
+      <div className="max-w-2xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
+        <PageHeader 
+          title="New Project" 
+          description="Create a new project within your workspace." 
+        />
         
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="projectName" className="block text-sm font-medium mb-1">Project Name</label>
-            <input
-              id="projectName"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded bg-transparent"
-              placeholder="e.g. Q3 Roadmap"
-              required
-            />
-          </div>
-          <div className="flex gap-4 pt-2">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="w-1/3 p-2 rounded border border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !name.trim()}
-              className="w-2/3 p-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Creating...' : 'Create Project'}
-            </button>
-          </div>
-        </form>
+        <Card>
+          <CardHeader>
+            <CardTitle>Project Details</CardTitle>
+          </CardHeader>
+          <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-4">
+              {error && (
+                <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm border border-destructive/20">
+                  {error}
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <label htmlFor="projectName" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Project Name
+                </label>
+                <input
+                  id="projectName"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors hover:border-primary/50"
+                  placeholder="e.g. Q3 Roadmap"
+                  required
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push(`/workspaces/${workspaceId}`)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading || !name.trim()}
+              >
+                {loading ? 'Creating...' : 'Create Project'}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
       </div>
-    </div>
+    </AppShell>
   );
 }

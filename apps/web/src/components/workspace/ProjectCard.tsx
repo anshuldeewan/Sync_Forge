@@ -35,12 +35,12 @@ export function ProjectCard({ project, workspaceId, canDelete, onDelete }: Proje
       </CardContent>
 
       <CardFooter className="mt-auto pt-4 flex gap-2">
-        <Link href={`/workspaces/${workspaceId}/projects/${project.id}`} passHref legacyBehavior>
-          <Button variant="secondary" className="flex-1 group/btn">
+        <Button variant="secondary" className="flex-1 group/btn" asChild>
+          <Link href={`/workspaces/${workspaceId}/projects/${project.id}`}>
             Open Project
             <ChevronRight className="ml-2 h-4 w-4 opacity-70 group-hover/btn:translate-x-0.5 transition-transform" />
-          </Button>
-        </Link>
+          </Link>
+        </Button>
         {canDelete && (
           <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 shrink-0" onClick={onDelete} title="Delete Project">
             <Trash2 className="h-4 w-4" />

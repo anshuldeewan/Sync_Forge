@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useWorkspace } from '../../../../../../context/WorkspaceContext';
+import { AppShell } from '../../../../../../components/layout/AppShell';
+import { PageHeader } from '../../../../../../components/layout/PageHeader';
+import { Button } from '../../../../../../components/ui/button';
+import { Card } from '../../../../../../components/ui/card';
+import { Plus, GripVertical } from 'lucide-react';
 
 export default function IssueBoardPage() {
   const { workspaceId, projectId } = useParams();
@@ -70,72 +75,99 @@ export default function IssueBoardPage() {
   const project = activeWorkspace?.projects?.find(p => p.id === projectId);
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 p-6">
-      <div className="max-w-6xl mx-auto w-full space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <button 
-              onClick={() => router.push(`/workspaces/${workspaceId}/projects/${projectId}`)}
-              className="text-sm text-gray-500 hover:underline mb-2"
-            >
-              &larr; Back to Project
-            </button>
-            <h1 className="text-3xl font-bold">Issues - {project?.name || 'Project'}</h1>
-          </div>
-          <button
-            onClick={() => openDialog()}
-            className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700"
-          >
-            New Issue
-          </button>
-        </div>
+    <AppShell>
+      <div className="flex flex-col space-y-6 h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+        <PageHeader 
+          title="Issues"
+          description={project?.name}
+          breadcrumbs={
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+               <a href={`/workspaces/${workspaceId}`} className="hover:underline">Workspace</a>
+               <span>/</span>
+               <a href={`/workspaces/${workspaceId}/projects/${projectId}`} className="hover:underline">{project?.name || 'Project'}</a>
+               <span>/</span>
+               <span className="text-foreground">Issues</span>
+            </div>
+          }
+          actions={
+            <Button onClick={() => openDialog()}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Issue
+            </Button>
+          }
+        />
 
         {loading ? (
-          <div>Loading issues...</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 min-h-0">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-muted/30 rounded-xl p-4 animate-pulse">
+                <div className="h-6 w-24 bg-muted mb-4 rounded"></div>
+                <div className="space-y-3">
+                   <div className="h-24 bg-muted rounded-md"></div>
+                   <div className="h-24 bg-muted rounded-md"></div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 min-h-0 overflow-hidden">
             {['OPEN', 'IN_PROGRESS', 'CLOSED'].map(status => {
               const statusIssues = issues.filter(i => i.status === status);
               return (
-                <div key={status} className="bg-gray-100 dark:bg-zinc-800 rounded-lg p-4 min-h-[500px]">
-                  <h3 className="font-semibold text-lg mb-4 text-gray-700 dark:text-gray-300">
-                    {status.replace('_', ' ')} ({statusIssues.length})
-                  </h3>
-                  <div className="space-y-4">
+                <div key={status} className="bg-muted/30 rounded-xl p-4 flex flex-col h-full border border-border/50">
+                  <div className="flex items-center justify-between mb-4 px-1">
+                    <h3 className="font-semibold text-sm tracking-wider text-muted-foreground uppercase flex items-center gap-2">
+                      {status.replace('_', ' ')}
+                      <span className="bg-background px-2 py-0.5 rounded-full text-xs border border-border shadow-sm">
+                        {statusIssues.length}
+                      </span>
+                    </h3>
+                  </div>
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
                     {statusIssues.map(issue => (
-                      <div 
+                      <Card 
                         key={issue.id}
                         onClick={() => openDialog(issue)}
-                        className="bg-white dark:bg-black p-4 rounded border border-gray-200 dark:border-zinc-700 shadow-sm cursor-pointer hover:border-blue-500 transition-colors"
+                        className="p-4 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all duration-200 group relative"
                       >
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-medium">{issue.title}</h4>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            issue.priority === 'HIGH' ? 'bg-red-100 text-red-800 dark:bg-red-900/30' : 
-                            issue.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30' : 
-                            'bg-green-100 text-green-800 dark:bg-green-900/30'
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                           <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+                        </div>
+                        <div className="flex justify-between items-start mb-2 pl-2">
+                          <h4 className="font-medium text-sm leading-tight text-foreground line-clamp-2">{issue.title}</h4>
+                        </div>
+                        <div className="pl-2 mb-3">
+                          <span className={`inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                            issue.priority === 'HIGH' ? 'bg-destructive/10 text-destructive border border-destructive/20' : 
+                            issue.priority === 'MEDIUM' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' : 
+                            'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                           }`}>
                             {issue.priority}
                           </span>
                         </div>
                         {issue.linkedSnippet && (
-                          <div className="text-xs text-blue-600 dark:text-blue-400 mb-2 font-mono bg-blue-50 dark:bg-blue-900/20 p-1 rounded inline-block truncate max-w-full">
-                            Snippet: {issue.linkedSnippet.text}
+                          <div className="ml-2 text-[10px] text-primary/80 mb-3 font-mono bg-primary/10 p-1.5 rounded truncate border border-primary/20">
+                            {issue.linkedSnippet.text}
                           </div>
                         )}
-                        <div className="flex justify-between items-center text-xs text-gray-500 mt-4">
-                          <span>By {issue.author.displayName}</span>
+                        <div className="flex justify-between items-center text-xs text-muted-foreground mt-auto pt-2 border-t border-border/50 ml-2">
+                          <span>{issue.author.displayName}</span>
                           {issue.assignee && (
-                            <span className="flex items-center gap-1">
-                              <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center text-[10px] text-blue-800">
+                            <span className="flex items-center gap-1.5 bg-background border px-1.5 py-0.5 rounded-full shadow-sm">
+                              <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center text-[9px] text-primary font-bold">
                                 {issue.assignee.displayName.charAt(0)}
                               </div>
-                              {issue.assignee.displayName}
+                              <span className="text-[10px] font-medium">{issue.assignee.displayName.split(' ')[0]}</span>
                             </span>
                           )}
                         </div>
-                      </div>
+                      </Card>
                     ))}
+                    {statusIssues.length === 0 && (
+                      <div className="h-24 border-2 border-dashed border-border/50 rounded-lg flex items-center justify-center text-xs text-muted-foreground/50">
+                        Drop issues here
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -153,7 +185,7 @@ export default function IssueBoardPage() {
           onSave={() => closeDialog(true)} 
         />
       )}
-    </div>
+    </AppShell>
   );
 }
 
@@ -211,101 +243,105 @@ function IssueDialog({ workspaceId, projectId, issue, onClose, onSave }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-zinc-900 rounded-lg max-w-lg w-full p-6">
-        <h2 className="text-xl font-semibold mb-4">{issue?.id ? 'Edit Issue' : 'New Issue'}</h2>
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+      <div className="bg-card text-card-foreground rounded-xl shadow-lg border max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="px-6 py-4 border-b">
+          <h2 className="text-xl font-semibold">{issue?.id ? 'Edit Issue' : 'New Issue'}</h2>
+        </div>
         
-        {error && <div className="text-red-500 mb-4 text-sm bg-red-50 p-2 rounded">{error}</div>}
+        <div className="p-6">
+          {error && <div className="text-destructive bg-destructive/10 border border-destructive/20 mb-4 text-sm p-3 rounded-md">{error}</div>}
 
-        <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label htmlFor="issue-title" className="block text-sm mb-1">Title</label>
-            <input 
-              id="issue-title"
-              required
-              disabled={isViewer}
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded bg-transparent" 
-            />
-          </div>
-          <div>
-            <label htmlFor="issue-desc" className="block text-sm mb-1">Description</label>
-            <textarea 
-              id="issue-desc"
-              disabled={isViewer}
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded bg-transparent h-24" 
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm mb-1">Status</label>
-              <select 
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="issue-title" className="text-sm font-medium leading-none">Title</label>
+              <input 
+                id="issue-title"
+                required
                 disabled={isViewer}
-                value={status}
-                onChange={e => setStatus(e.target.value)}
-                className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded bg-transparent"
-              >
-                <option value="OPEN">Open</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="CLOSED">Closed</option>
-              </select>
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors" 
+              />
             </div>
-            <div>
-              <label className="block text-sm mb-1">Priority</label>
-              <select 
+            <div className="space-y-2">
+              <label htmlFor="issue-desc" className="text-sm font-medium leading-none">Description</label>
+              <textarea 
+                id="issue-desc"
                 disabled={isViewer}
-                value={priority}
-                onChange={e => setPriority(e.target.value)}
-                className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded bg-transparent"
-              >
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-              </select>
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors resize-none" 
+              />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1">Assignee</label>
-            <select 
-              disabled={isViewer}
-              value={assigneeId}
-              onChange={e => setAssigneeId(e.target.value)}
-              className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded bg-transparent"
-            >
-              <option value="">Unassigned</option>
-              {members.map(m => (
-                <option key={m.userId} value={m.userId}>{m.user.displayName}</option>
-              ))}
-            </select>
-          </div>
-
-          {issue?.linkedSnippet && (
-            <div className="bg-gray-50 dark:bg-zinc-800 p-3 rounded text-sm">
-              <span className="block font-semibold mb-1">Linked Code</span>
-              <div className="font-mono text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-zinc-900 p-2 rounded overflow-x-auto">
-                {issue.linkedSnippet.text}
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">Status</label>
+                <select 
+                  disabled={isViewer}
+                  value={status}
+                  onChange={e => setStatus(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                >
+                  <option value="OPEN">Open</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="CLOSED">Closed</option>
+                </select>
               </div>
-              <div className="mt-2 text-xs text-gray-500">
-                Resource: {issue.linkedSnippet.resourceId} | Version: {issue.linkedSnippet.version} <br />
-                Lines: {issue.linkedSnippet.startLine}-{issue.linkedSnippet.endLine}
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">Priority</label>
+                <select 
+                  disabled={isViewer}
+                  value={priority}
+                  onChange={e => setPriority(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                >
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                </select>
               </div>
             </div>
-          )}
 
-          <div className="flex justify-end gap-2 mt-6">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-            {!isViewer && (
-              <button disabled={saving} type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
-                {saving ? 'Saving...' : 'Save Issue'}
-              </button>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Assignee</label>
+              <select 
+                disabled={isViewer}
+                value={assigneeId}
+                onChange={e => setAssigneeId(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+              >
+                <option value="">Unassigned</option>
+                {members.map(m => (
+                  <option key={m.userId} value={m.userId}>{m.user.displayName}</option>
+                ))}
+              </select>
+            </div>
+
+            {issue?.linkedSnippet && (
+              <div className="bg-muted p-3 rounded-md text-sm border border-border">
+                <span className="block font-semibold mb-2">Linked Code</span>
+                <div className="font-mono text-xs text-muted-foreground bg-background p-2 rounded overflow-x-auto border border-border/50">
+                  {issue.linkedSnippet.text}
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  Resource: {issue.linkedSnippet.resourceId} | Version: {issue.linkedSnippet.version} <br />
+                  Lines: {issue.linkedSnippet.startLine}-{issue.linkedSnippet.endLine}
+                </div>
+              </div>
             )}
-          </div>
-        </form>
+
+            <div className="flex justify-end gap-3 mt-8 pt-4 border-t">
+              <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+              {!isViewer && (
+                <Button disabled={saving} type="submit">
+                  {saving ? 'Saving...' : 'Save Issue'}
+                </Button>
+              )}
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

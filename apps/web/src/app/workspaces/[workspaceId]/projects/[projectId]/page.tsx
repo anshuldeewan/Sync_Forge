@@ -6,10 +6,13 @@ import { useEffect, useState } from 'react';
 import { ProjectExplorer } from '../../../../../components/explorer/ProjectExplorer';
 import { Editor } from '../../../../../components/editor/Editor';
 import { FileViewer } from '../../../../../components/editor/FileViewer';
-import { NotificationBell } from '../../../../../components/NotificationBell';
+import { AppShell } from '../../../../../components/layout/AppShell';
+import { PageHeader } from '../../../../../components/layout/PageHeader';
+import { Button } from '../../../../../components/ui/button';
+import { ListTodo } from 'lucide-react';
 
 export default function ProjectPage() {
-  const { workspaces, activeWorkspace } = useWorkspace();
+  const { activeWorkspace } = useWorkspace();
   const params = useParams();
   const router = useRouter();
   const workspaceId = params.workspaceId as string;
@@ -29,35 +32,38 @@ export default function ProjectPage() {
   }, [activeWorkspace, workspaceId, projectId, router]);
 
   if (!project) {
-    return <div className="p-6">Loading project...</div>;
+    return (
+      <AppShell>
+        <div className="p-6 text-muted-foreground animate-pulse">Loading project...</div>
+      </AppShell>
+    );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 p-6">
-      <div className="max-w-6xl mx-auto w-full space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <button 
-              onClick={() => router.push('/')}
-              className="text-sm text-gray-500 hover:underline mb-2"
-            >
-              &larr; Back to Dashboard
-            </button>
-            <h1 className="text-3xl font-bold">{project.name}</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <button
+    <AppShell>
+      <div className="flex flex-col space-y-6 h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+        <PageHeader 
+          title={project.name}
+          breadcrumbs={
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+               <a href={`/workspaces/${workspaceId}`} className="hover:underline">Workspace</a>
+               <span>/</span>
+               <span className="text-foreground">{project.name}</span>
+            </div>
+          }
+          actions={
+            <Button
+              variant="outline"
               onClick={() => router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues`)}
-              className="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800"
             >
+              <ListTodo className="mr-2 h-4 w-4" />
               Issues
-            </button>
-            <NotificationBell />
-          </div>
-        </div>
+            </Button>
+          }
+        />
         
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1 h-[600px]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
+          <div className="lg:col-span-1 h-full overflow-hidden rounded-xl border bg-card shadow-sm">
             <ProjectExplorer 
               workspaceId={workspaceId} 
               projectId={projectId} 
@@ -65,7 +71,7 @@ export default function ProjectPage() {
             />
           </div>
           
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 h-full overflow-hidden rounded-xl border bg-card shadow-sm">
             {selectedFile ? (
               selectedFile.type === 'PAGE' ? (
                 <Editor 
@@ -85,22 +91,25 @@ export default function ProjectPage() {
                   initialShowHistory={selectedFile.action === 'history'}
                 />
               ) : (
-                <div className="bg-white dark:bg-black rounded-lg border border-gray-200 dark:border-zinc-800 p-8 flex flex-col items-center justify-center min-h-[400px] text-center text-gray-500">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">{selectedFile.name}</h2>
-                  <p className="max-w-md">
-                    This resource type cannot be edited.
-                  </p>
+                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
+                  <h2 className="text-xl font-semibold text-foreground mb-2">{selectedFile.name}</h2>
+                  <p className="max-w-md">This resource type cannot be edited.</p>
                 </div>
               )
             ) : (
-              <div className="bg-white dark:bg-black rounded-lg border border-gray-200 dark:border-zinc-800 p-8 flex flex-col items-center justify-center min-h-[400px] text-center text-gray-500">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">Welcome to your Project</h2>
-                <p className="max-w-md">Select a page or file from the explorer on the left to view or edit it. Right click on the explorer to create folders and resources.</p>
+              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 bg-muted/20">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <ListTodo className="h-6 w-6 text-primary opacity-50" />
+                </div>
+                <h2 className="text-xl font-semibold text-foreground mb-2">Welcome to {project.name}</h2>
+                <p className="max-w-md text-sm">
+                  Select a page or file from the explorer on the left to view or edit it. Right click on the explorer to create folders and resources.
+                </p>
               </div>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }
