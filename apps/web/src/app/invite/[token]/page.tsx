@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../context/AuthContext';
 import { useWorkspace } from '../../../context/WorkspaceContext';
+import { AuthLayout } from '../../../components/auth/AuthLayout';
+import { Button } from '../../../components/ui/button';
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 export default function AcceptInvite() {
   const { user, loading: authLoading } = useAuth();
@@ -13,6 +16,7 @@ export default function AcceptInvite() {
   
   const [status, setStatus] = useState('Verifying invitation...');
   const [error, setError] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -45,6 +49,7 @@ export default function AcceptInvite() {
 
         const { workspaceId } = await res.json();
         setStatus('Invitation accepted! Loading workspace...');
+        setIsSuccess(true);
         
         await refreshWorkspaces();
         switchWorkspace(workspaceId);
@@ -54,23 +59,39 @@ export default function AcceptInvite() {
     };
 
     accept();
-  }, [user, authLoading, params.token]);
-
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-zinc-900 p-6">
-        <div className="max-w-md w-full bg-white dark:bg-black p-8 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 text-center">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Invitation Failed</h2>
-          <p className="text-gray-700 dark:text-gray-300 mb-6">{error}</p>
-          <button onClick={() => router.push('/')} className="bg-blue-600 text-white px-4 py-2 rounded">Go to Dashboard</button>
-        </div>
-      </div>
-    );
-  }
+  }, [user, authLoading, params.token, router, refreshWorkspaces, switchWorkspace]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-zinc-900 p-6">
-      <div className="text-lg font-medium animate-pulse">{status}</div>
-    </div>
+    <AuthLayout>
+      <div className="flex flex-col space-y-6 text-center sm:text-left">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight">Workspace Invitation</h1>
+          <p className="text-sm text-muted-foreground">
+            Please wait while we verify your invitation.
+          </p>
+        </div>
+
+        {error ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2 rounded-md bg-destructive/15 p-4 text-sm text-destructive">
+              <AlertCircle className="h-5 w-5 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <Button onClick={() => router.push('/')} className="w-full">
+              Go to Dashboard
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-4 py-8">
+            {isSuccess ? (
+              <CheckCircle2 className="h-12 w-12 text-primary" />
+            ) : (
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            )}
+            <p className="text-sm font-medium">{status}</p>
+          </div>
+        )}
+      </div>
+    </AuthLayout>
   );
 }
