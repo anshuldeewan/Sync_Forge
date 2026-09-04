@@ -14,6 +14,7 @@ import {
 interface AuthContextType {
   user: FirebaseUser | null;
   loading: boolean;
+  isDemo: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -68,8 +69,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await firebaseSignOut(auth);
   };
 
+  const isDemo = user?.email?.endsWith('@demo.syncforge.local') || false;
+
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isDemo, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -3,6 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import { useAuth } from '../context/AuthContext';
+import { Bell, Check, CheckCheck, BellRing, Inbox } from 'lucide-react';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Skeleton } from './ui/skeleton';
 
 export function NotificationBell() {
   const { user } = useAuth();
@@ -21,7 +25,7 @@ export function NotificationBell() {
     return res.json();
   };
 
-  const { data, mutate } = useSWR(user ? '/api/notifications' : null, fetcher, { refreshInterval: 10000 });
+  const { data, mutate, isLoading } = useSWR(user ? '/api/notifications' : null, fetcher, { refreshInterval: 10000 });
   const notifications = data?.notifications || [];
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
@@ -37,6 +41,10 @@ export function NotificationBell() {
 
   const markRead = async (id: string) => {
     if (!user) return;
+    
+    // Optimistic UI update
+    mutate({ notifications: notifications.map((n: any) => n.id === id ? { ...n, isRead: true } : n) }, false);
+    
     const token = await user.getIdToken();
     const { getApiUrl } = await import('../config/api');
     await fetch(`${getApiUrl()}/api/notifications/${id}/read`, {
@@ -47,7 +55,11 @@ export function NotificationBell() {
   };
 
   const markAllRead = async () => {
-    if (!user) return;
+    if (!user || unreadCount === 0) return;
+    
+    // Optimistic UI update
+    mutate({ notifications: notifications.map((n: any) => ({ ...n, isRead: true })) }, false);
+    
     const token = await user.getIdToken();
     const { getApiUrl } = await import('../config/api');
     await fetch(`${getApiUrl()}/api/notifications/read-all`, {
@@ -55,61 +67,125 @@ export function NotificationBell() {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     mutate();
-    setIsOpen(false);
   };
 
   if (!user) return null;
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button 
+      <Button 
+        variant="ghost" 
+        size="icon" 
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+        className={`relative rounded-full transition-all ${isOpen ? 'bg-accent text-accent-foreground' : ''}`}
+        aria-label="Notifications"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-        </svg>
+        {unreadCount > 0 ? (
+          <BellRing className="h-5 w-5" />
+        ) : (
+          <Bell className="h-5 w-5 text-muted-foreground" />
+        )}
+        
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+          <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground animate-in zoom-in duration-300 shadow-sm border border-background">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
-      </button>
+      </Button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-50 overflow-hidden">
-          <div className="p-3 border-b border-gray-200 dark:border-zinc-800 flex justify-between items-center bg-gray-50 dark:bg-zinc-950">
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200">Notifications</h3>
-            {unreadCount > 0 && (
-              <button 
-                onClick={markAllRead}
-                className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-              >
-                Mark all read
-              </button>
-            )}
-          </div>
-          
-          <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="p-4 text-center text-sm text-gray-500">
-                No notifications
-              </div>
-            ) : (
-              notifications.map((notif: any) => (
-                <div 
-                  key={notif.id} 
-                  className={`p-4 border-b border-gray-100 dark:border-zinc-800 flex flex-col gap-1 cursor-pointer transition-colors ${notif.isRead ? 'opacity-70 bg-white dark:bg-zinc-900' : 'bg-blue-50/50 dark:bg-blue-900/10 hover:bg-gray-50 dark:hover:bg-zinc-800'}`}
-                  onClick={() => !notif.isRead && markRead(notif.id)}
-                >
-                  <p className="text-sm text-gray-800 dark:text-gray-200">{notif.message}</p>
-                  <span className="text-xs text-gray-400">
-                    {new Date(notif.createdAt).toLocaleString()}
+        <div className="absolute right-0 mt-2 w-[340px] sm:w-[380px] z-50 animate-in slide-in-from-top-2 fade-in duration-200">
+          <Card className="shadow-lg border-border overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-card sticky top-0 z-10">
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full font-medium">
+                    {unreadCount} new
                   </span>
+                )}
+              </h3>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={markAllRead}
+                disabled={unreadCount === 0}
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+              >
+                <CheckCheck className="h-3.5 w-3.5 mr-1" />
+                Mark all read
+              </Button>
+            </div>
+            
+            <div className="overflow-y-auto flex-1 overscroll-contain">
+              {isLoading && notifications.length === 0 ? (
+                <div className="p-4 space-y-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex gap-3">
+                      <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))
+              ) : notifications.length === 0 ? (
+                <div className="p-8 flex flex-col items-center justify-center text-center space-y-3">
+                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                    <Inbox className="h-6 w-6 text-muted-foreground/50" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">You're all caught up!</p>
+                    <p className="text-xs text-muted-foreground mt-1">No new notifications to show.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {notifications.map((notif: any) => (
+                    <div 
+                      key={notif.id} 
+                      className={`relative group p-4 flex gap-3 cursor-pointer transition-all duration-200 ${
+                        notif.isRead 
+                          ? 'bg-background hover:bg-muted/40' 
+                          : 'bg-primary/5 hover:bg-primary/10'
+                      }`}
+                      onClick={() => !notif.isRead && markRead(notif.id)}
+                    >
+                      {!notif.isRead && (
+                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-r" />
+                      )}
+                      
+                      <div className="flex-1 space-y-1">
+                        <p className={`text-sm leading-snug ${notif.isRead ? 'text-muted-foreground' : 'text-foreground font-medium'}`}>
+                          {notif.message}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                            {new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {!notif.isRead && (
+                        <div className="flex-shrink-0 pt-1">
+                          <div className="h-2 w-2 rounded-full bg-primary" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {notifications.length > 0 && (
+              <div className="p-2 border-t border-border bg-muted/20 text-center sticky bottom-0">
+                <Button variant="link" className="text-xs h-auto py-1 text-muted-foreground hover:text-foreground w-full">
+                  View Notification Settings
+                </Button>
+              </div>
             )}
-          </div>
+          </Card>
         </div>
       )}
     </div>

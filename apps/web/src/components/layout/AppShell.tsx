@@ -6,14 +6,18 @@ import { Topbar } from './Topbar';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { Menu } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface AppShellProps {
   children: React.ReactNode;
   isDemo?: boolean;
 }
 
-export function AppShell({ children, isDemo = false }: AppShellProps) {
+export function AppShell({ children, isDemo: propIsDemo = false }: AppShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isDemo: contextIsDemo } = useAuth();
+  
+  const isDemo = propIsDemo || contextIsDemo;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

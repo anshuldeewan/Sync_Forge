@@ -1,36 +1,52 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '../../../../context/AuthContext';
-import { useWorkspace } from '../../../../context/WorkspaceContext';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { useWorkspace } from '@/context/WorkspaceContext';
+import { AppShell } from '@/components/layout/AppShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { SettingsSidebar } from '@/components/workspace/SettingsSidebar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Loader2, Settings, Users, AlertCircle } from 'lucide-react';
 
 export default function WorkspaceSettings() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const workspaceId = params.workspaceId as string;
-  const { user } = useAuth();
-  const { activeWorkspace } = useWorkspace();
+  const currentTab = searchParams?.get('tab') || 'general';
+  
+  const { user, isDemo } = useAuth();
+  const { activeWorkspace, myRole, fetchWithAuth, refreshWorkspaces } = useWorkspace();
   const router = useRouter();
   
+  // Data states
   const [members, setMembers] = useState<any[]>([]);
   const [invitations, setInvitations] = useState<any[]>([]);
+  
+  // Form states
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('EDITOR');
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  
+  // UI states
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [inviteLink, setInviteLink] = useState('');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-    if (!user) return null;
-    const token = await user.getIdToken();
-    const { getApiUrl } = await import('../../../../config/api');
-    const apiUrl = getApiUrl();
-    return fetch(`${apiUrl}${url}`, {
-      ...options,
-      headers: { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-    });
-  };
+  const canManageSettings = myRole === 'OWNER' || myRole === 'ADMIN';
+  const canDeleteWorkspace = myRole === 'OWNER';
 
   const loadData = async () => {
     try {
@@ -59,6 +75,7 @@ export default function WorkspaceSettings() {
       if (activeWorkspace.id !== workspaceId) {
         router.push('/');
       } else {
+        setWorkspaceName(activeWorkspace.name);
         loadData();
       }
     }
@@ -66,33 +83,47 @@ export default function WorkspaceSettings() {
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    if (!canManageSettings) return;
+    if (isDemo) {
+      alert('This action is disabled in the Demo Sandbox.');
+      return;
+    }
+    
+    setActionLoading(true);
     setSuccess('');
     setInviteLink('');
+    setActionLoading(true);
 
     try {
       const res = await fetchWithAuth(`/api/workspaces/${workspaceId}/invitations`, {
         method: 'POST',
         body: JSON.stringify({ email: inviteEmail, role: inviteRole })
       });
-      const data = await res!.json();
+      const data = await res.json();
 
-      if (!res!.ok) throw new Error(data.error?.message || 'Failed to invite');
+      if (!res.ok) throw new Error(data.error?.message || 'Failed to invite');
 
-      setSuccess('Invitation created!');
+      setSuccess('Invitation created successfully!');
       setInviteLink(data.inviteUrl);
       setInviteEmail('');
       loadData();
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const removeMember = async (userId: string) => {
+    if (!canManageSettings) return;
+    if (isDemo) {
+      alert('This action is disabled in the Demo Sandbox.');
+      return;
+    }
     try {
       const res = await fetchWithAuth(`/api/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' });
-      if (!res!.ok) {
-        const data = await res!.json();
+      if (!res.ok) {
+        const data = await res.json();
         alert(data.error?.message || 'Failed to remove member');
         return;
       }
@@ -102,97 +133,345 @@ export default function WorkspaceSettings() {
     }
   };
 
-  if (loading) return <div className="p-8">Loading settings...</div>;
+  const handleRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canManageSettings) return;
+    if (isDemo) {
+      alert('This action is disabled in the Demo Sandbox.');
+      return;
+    }
+    if (workspaceName.trim() === activeWorkspace?.name) return;
+    
+    setError('');
+    setSuccess('');
+    setActionLoading(true);
+
+    try {
+      const res = await fetchWithAuth(`/api/workspaces/${workspaceId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: workspaceName })
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error?.message || 'Failed to rename workspace');
+
+      setSuccess('Workspace renamed successfully!');
+      await refreshWorkspaces();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteWorkspace = async () => {
+    if (!canDeleteWorkspace) return;
+    if (isDemo) {
+      setIsDeleteDialogOpen(false);
+      alert('This action is disabled in the Demo Sandbox.');
+      return;
+    }
+    if (deleteConfirmName !== activeWorkspace?.name) return;
+    
+    setActionLoading(true);
+    try {
+      const res = await fetchWithAuth(`/api/workspaces/${workspaceId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error?.message || 'Failed to delete workspace');
+      }
+
+      await refreshWorkspaces();
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message);
+      setActionLoading(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
+  if (!activeWorkspace || loading) {
+    return (
+      <AppShell>
+        <div className="flex h-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'OWNER': return <Badge variant="default" className="bg-primary/20 text-primary hover:bg-primary/30 border-transparent">Owner</Badge>;
+      case 'ADMIN': return <Badge variant="default" className="bg-blue-500/20 text-blue-500 hover:bg-blue-500/30 border-transparent">Admin</Badge>;
+      case 'EDITOR': return <Badge variant="secondary">Editor</Badge>;
+      case 'VIEWER': return <Badge variant="outline">Viewer</Badge>;
+      default: return <Badge variant="outline">{role}</Badge>;
+    }
+  };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 p-8">
-      <div className="max-w-4xl mx-auto w-full">
-        <button onClick={() => router.push('/')} className="text-blue-500 hover:underline mb-6">&larr; Back to Dashboard</button>
-        
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Workspace Settings</h1>
-          <button 
-            onClick={() => router.push(`/workspaces/${workspaceId}/settings/audit`)} 
-            className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded text-sm font-medium transition-colors"
-          >
-            View Audit Logs
-          </button>
-        </div>
-
-        <div className="bg-white dark:bg-black rounded-lg p-6 shadow-sm border border-gray-200 dark:border-zinc-800 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Members</h2>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b dark:border-zinc-800">
-                <th className="py-2">User</th>
-                <th>Role</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map(m => (
-                <tr key={m.userId} className="border-b dark:border-zinc-800">
-                  <td className="py-3">
-                    <div>{m.user.displayName}</div>
-                    <div className="text-sm text-gray-500">{m.user.email}</div>
-                  </td>
-                  <td>{m.role}</td>
-                  <td>
-                    {m.userId !== user?.uid && (
-                      <button onClick={() => removeMember(m.userId)} className="text-red-500 hover:underline text-sm">Remove</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="bg-white dark:bg-black rounded-lg p-6 shadow-sm border border-gray-200 dark:border-zinc-800">
-          <h2 className="text-xl font-semibold mb-4">Invite New Member</h2>
-          
-          {error && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">{error}</div>}
-          {success && <div className="bg-green-50 text-green-600 p-3 rounded mb-4 text-sm">{success}</div>}
-          {inviteLink && (
-            <div className="bg-blue-50 text-blue-800 p-3 rounded mb-4 text-sm font-mono overflow-auto whitespace-nowrap">
-              Share this link: {inviteLink}
+    <AppShell>
+      <div className="flex flex-col space-y-6 animate-in fade-in duration-500 p-6 md:p-8 max-w-7xl mx-auto w-full">
+        <PageHeader 
+          title="Settings" 
+          breadcrumbs={
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="text-foreground">{activeWorkspace.name}</span>
+              <span>/</span>
+              <span>Settings</span>
             </div>
-          )}
+          }
+        />
+        
+        <div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0 mt-6">
+          <aside className="lg:w-1/5">
+            <SettingsSidebar workspaceId={workspaceId} />
+          </aside>
+          
+          <div className="flex-1 lg:max-w-4xl space-y-8">
+            {error && (
+              <div className="flex items-center gap-2 p-4 text-sm text-red-600 bg-red-500/10 border border-red-500/20 rounded-md">
+                <AlertCircle className="h-4 w-4" />
+                {error}
+              </div>
+            )}
+            
+            {success && (
+              <div className="flex items-center gap-2 p-4 text-sm text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-md">
+                <AlertCircle className="h-4 w-4" />
+                {success}
+              </div>
+            )}
 
-          <form onSubmit={handleInvite} className="flex gap-4">
-            <input 
-              type="email" 
-              placeholder="Email address" 
-              value={inviteEmail} 
-              onChange={e => setInviteEmail(e.target.value)}
-              className="flex-1 p-2 border border-gray-300 dark:border-zinc-700 rounded bg-transparent"
-              required
-            />
-            <select 
-              value={inviteRole} 
-              onChange={e => setInviteRole(e.target.value)}
-              className="p-2 border border-gray-300 dark:border-zinc-700 rounded bg-transparent"
-            >
-              <option value="ADMIN">Admin</option>
-              <option value="EDITOR">Editor</option>
-              <option value="VIEWER">Viewer</option>
-            </select>
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Invite</button>
-          </form>
+            {currentTab === 'general' && (
+              <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+                <div>
+                  <h3 className="text-lg font-medium">General Settings</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Manage your workspace name and preferences.
+                  </p>
+                  
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Workspace Name</CardTitle>
+                      <CardDescription>
+                        This is your workspace's visible name within SyncForge.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={handleRename} className="flex gap-4 max-w-md">
+                        <Input
+                          value={workspaceName}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWorkspaceName(e.target.value)}
+                          disabled={!canManageSettings || actionLoading}
+                          placeholder="Workspace Name"
+                        />
+                        {canManageSettings && (
+                          <Button 
+                            type="submit" 
+                            disabled={workspaceName.trim() === activeWorkspace.name || actionLoading}
+                          >
+                            {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Save
+                          </Button>
+                        )}
+                      </form>
+                    </CardContent>
+                  </Card>
+                </div>
 
-          <h3 className="font-semibold mt-8 mb-2">Pending Invitations</h3>
-          {invitations.length === 0 ? <p className="text-gray-500 text-sm">No pending invitations.</p> : (
-            <ul className="space-y-2">
-              {invitations.map(inv => (
-                <li key={inv.id} className="text-sm border p-3 rounded flex justify-between dark:border-zinc-700">
-                  <span>{inv.email} ({inv.role})</span>
-                  <span className="text-gray-500">Expires: {new Date(inv.expiresAt).toLocaleDateString()}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+                {canDeleteWorkspace && (
+                  <div>
+                    <h3 className="text-lg font-medium text-destructive">Danger Zone</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Irreversible and destructive actions.
+                    </p>
+                    
+                    <Card className="border-destructive/20 bg-destructive/5">
+                      <CardHeader>
+                        <CardTitle className="text-destructive">Delete Workspace</CardTitle>
+                        <CardDescription>
+                          Once you delete a workspace, there is no going back. Please be certain.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="destructive">Delete Workspace</Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Are you absolutely sure?</DialogTitle>
+                              <DialogDescription>
+                                This action cannot be undone. This will permanently delete the
+                                <strong> {activeWorkspace.name} </strong> workspace and remove all
+                                projects, resources, and data associated with it.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="my-4 space-y-4">
+                              <p className="text-sm font-medium">
+                                Please type <span className="font-mono bg-muted px-1 py-0.5 rounded text-foreground">{activeWorkspace.name}</span> to confirm.
+                              </p>
+                              <Input 
+                                value={deleteConfirmName} 
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeleteConfirmName(e.target.value)}
+                                placeholder={activeWorkspace.name}
+                              />
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={actionLoading}>Cancel</Button>
+                              <Button 
+                                variant="destructive" 
+                                onClick={handleDeleteWorkspace} 
+                                disabled={deleteConfirmName !== activeWorkspace.name || actionLoading}
+                              >
+                                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                Delete Workspace
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentTab === 'members' && (
+              <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+                <div>
+                  <h3 className="text-lg font-medium">Members</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Manage who has access to this workspace.
+                  </p>
+                  
+                  <Card>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>User</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {members.map((m) => (
+                            <TableRow key={m.userId} className="group">
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                      {m.user.displayName?.substring(0, 2).toUpperCase() || 'U'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium leading-none mb-1">{m.user.displayName}</span>
+                                    <span className="text-xs text-muted-foreground">{m.user.email}</span>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {getRoleBadge(m.role)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {m.userId !== user?.uid && canManageSettings && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => removeMember(m.userId)}
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    Remove
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Card>
+                </div>
+
+                {canManageSettings && (
+                  <div>
+                    <h3 className="text-lg font-medium">Invite Members</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Invite new people to collaborate in this workspace.
+                    </p>
+                    
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Send Invitation</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {inviteLink && (
+                          <div className="bg-primary/10 text-primary p-3 rounded-md mb-6 text-sm font-mono overflow-auto whitespace-nowrap border border-primary/20">
+                            Share this link: {inviteLink}
+                          </div>
+                        )}
+                        <form onSubmit={handleInvite} className="flex gap-4">
+                          <Input 
+                            type="email" 
+                            placeholder="Email address" 
+                            value={inviteEmail} 
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInviteEmail(e.target.value)}
+                            className="flex-1"
+                            required
+                            disabled={actionLoading}
+                          />
+                          <select 
+                            value={inviteRole} 
+                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setInviteRole(e.target.value)}
+                            className="h-9 w-[130px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={actionLoading}
+                          >
+                            <option value="ADMIN">Admin</option>
+                            <option value="EDITOR">Editor</option>
+                            <option value="VIEWER">Viewer</option>
+                          </select>
+                          <Button type="submit" disabled={actionLoading}>
+                            {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Invite
+                          </Button>
+                        </form>
+                      </CardContent>
+                      
+                      {invitations.length > 0 && (
+                        <>
+                          <Separator />
+                          <CardContent className="pt-6">
+                            <h4 className="text-sm font-medium mb-4">Pending Invitations</h4>
+                            <div className="space-y-3">
+                              {invitations.map(inv => (
+                                <div key={inv.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/40">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium">{inv.email}</span>
+                                      <span className="text-xs text-muted-foreground">Expires: {new Date(inv.expiresAt).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                  {getRoleBadge(inv.role)}
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </>
+                      )}
+                    </Card>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

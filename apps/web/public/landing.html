@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>SyncForge — Where Engineering Teams Build in Zero-Latency Resonance</title>
+  <meta name="description"
+    content="A high-performance real-time collaborative workspace engine powered by Yjs CRDTs, infinite workspace hierarchies, and verifiable audit ledgers.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    /* ============================================================= design tokens */
+    :root {
+      --ink: #040609;
+      --ink-2: #080d14;
+      --bone: #dfe7e0;
+      --bone-dim: #9aa7a0;
+      --muted: #4e5a53;
+      --line: rgba(0, 242, 254, 0.14);
+      --line-soft: rgba(223, 231, 224, 0.08);
+      --cyan: #00f2fe;
+      --cyan-glow: rgba(0, 242, 254, 0.45);
+      --violet: #892cdc;
+      --ember: #ff3b30;
+      --nav-h: 84px;
+      --pad: clamp(24px, 4vw, 68px);
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+      scroll-behavior: auto;
+    }
+
+    body {
+      margin: 0;
+      background: var(--ink);
+      color: var(--bone);
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      font-weight: 300;
+      font-size: 15px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+
+    body.is-locked {
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    ::selection {
+      background: var(--cyan);
+      color: #040609;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: 0;
+      cursor: pointer;
+    }
+
+    .mono {
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* ============================================================= canvas & post layers */
+    #gl {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 0;
+      background: #040609;
+    }
+
+    #grain {
+      position: fixed;
+      inset: -1px;
+      z-index: 60;
+      pointer-events: none;
+      opacity: 0.045;
+      mix-blend-mode: overlay;
+    }
+
+    #vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      pointer-events: none;
+      background: radial-gradient(130% 95% at 50% 45%, transparent 35%, rgba(3, 5, 8, 0.9) 100%);
+    }
+
+    .page {
+      position: relative;
+      z-index: 10;
+    }
+
+    /* ============================================================= typography */
+    .eyebrow {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      text-shadow: 0 0 16px var(--cyan-glow);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+      animation: pulse 2.2s infinite;
+    }
+
+    h1,
+    h2,
+    h3 {
+      font-weight: 500;
+      margin: 0;
+      letter-spacing: -0.025em;
+      line-height: 1.08;
+    }
+
+    .display {
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .h-hero {
+      font-size: clamp(34px, 4.4vw, 68px);
+      letter-spacing: -0.035em;
+    }
+
+    .h-sec {
+      font-size: clamp(28px, 3.6vw, 56px);
+    }
+
+    .body-lg {
+      font-size: clamp(15px, 1.1vw, 18px);
+      line-height: 1.75;
+      color: #a9b7c6;
+    }
+
+    .body {
+      font-size: 14.5px;
+      line-height: 1.7;
+      color: var(--bone-dim);
+    }
+
+    /* ============================================================= preloader */
+    #pre {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: #040609;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s var(--ease-io), visibility 0.8s;
+    }
+
+    #pre.done {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .pre-in {
+      width: min(420px, 76vw);
+      text-align: center;
+    }
+
+    .pre-mark {
+      margin: 0 auto 20px;
+      width: 44px;
+      height: 44px;
+    }
+
+    .pre-mark svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .pre-tag {
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      color: var(--cyan);
+      margin-bottom: 16px;
+    }
+
+    .pre-bar {
+      position: relative;
+      height: 2px;
+      background: rgba(223, 231, 224, 0.1);
+      overflow: hidden;
+    }
+
+    .pre-bar i {
+      position: absolute;
+      inset: 0 100% 0 0;
+      background: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan);
+      transition: right 0.25s linear;
+    }
+
+    .pre-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+      font-size: 10.5px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .pre-meta b {
+      color: var(--cyan);
+    }
+
+    /* ============================================================= navigation */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--nav-h);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--pad);
+      transition: background 0.45s, backdrop-filter 0.45s, transform 0.4s;
+    }
+
+    .nav.stuck {
+      background: rgba(4, 6, 9, 0.72);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.18em;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--cyan);
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      box-shadow: 0 0 14px rgba(0, 242, 254, 0.25);
+      background: rgba(0, 242, 254, 0.04);
+    }
+
+    .brand span i {
+      font-style: normal;
+      color: var(--cyan);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: clamp(20px, 3vw, 42px);
+    }
+
+    .nav-link {
+      font-size: 11.5px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--bone-dim);
+      transition: color 0.3s;
+      position: relative;
+    }
+
+    .nav-link:hover,
+    .nav-link.on {
+      color: var(--cyan);
+    }
+
+    .nav-link.on::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -6px;
+      width: 100%;
+      height: 1.5px;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    .nav-cta {
+      padding: 8px 18px;
+      border: 1px solid var(--cyan);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      border-radius: 4px;
+      color: var(--cyan);
+      transition: all 0.3s;
+    }
+
+    .nav-cta:hover {
+      background: var(--cyan);
+      color: #040609;
+      box-shadow: 0 0 20px var(--cyan);
+    }
+
+    /* ============================================================= hero */
+    .hero {
+      position: relative;
+      min-height: 100svh;
+      padding: 0 var(--pad);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .hero-top {
+      padding-top: calc(var(--nav-h) + clamp(20px, 4vh, 60px));
+      max-width: 680px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .hero h1 {
+      margin: 18px 0 22px;
+    }
+
+    .hero-sub {
+      max-width: 520px;
+      margin-bottom: 32px;
+      text-shadow: 0 2px 24px rgba(0, 0, 0, 0.8);
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      padding: 14px 28px;
+      background: var(--cyan);
+      color: #040609;
+      font-weight: 600;
+      font-size: 11.5px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 0 24px rgba(0, 242, 254, 0.3);
+      transition: all 0.3s;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 36px rgba(0, 242, 254, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      padding: 14px 28px;
+      border: 1px solid var(--line-soft);
+      color: var(--bone);
+      font-weight: 500;
+      font-size: 11.5px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.02);
+      transition: border-color 0.3s;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--cyan);
+    }
+
+    /* Giant 3D Horizon Wordmark */
+    .hero-wordmark {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 8%;
+      z-index: 1;
+      pointer-events: none;
+      text-align: center;
+      font-family: system-ui, sans-serif;
+      font-weight: 900;
+      font-size: clamp(60px, 16vw, 240px);
+      line-height: 0.8;
+      letter-spacing: 0.08em;
+      background: linear-gradient(180deg, rgba(223, 231, 224, 0.22) 0%, rgba(223, 231, 224, 0.02) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      user-select: none;
+    }
+
+    .hero-foot {
+      padding-bottom: 36px;
+      position: relative;
+      z-index: 2;
+      border-top: 1px solid var(--line-soft);
+      padding-top: 22px;
+    }
+
+    .pillars {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+    }
+
+    .pillar-card {
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+
+    .pillar-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .pillar-card .num {
+      font-size: 11px;
+      color: var(--cyan);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .pillar-card b {
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--bone);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .pillar-card p {
+      margin: 0;
+      font-size: 11.5px;
+      color: var(--bone-dim);
+      line-height: 1.5;
+    }
+
+    /* ============================================================= sections */
+    .sec {
+      position: relative;
+      padding: clamp(100px, 16vh, 200px) var(--pad);
+    }
+
+    .sec::before {
+      content: '';
+      position: absolute;
+      inset: -20% -4%;
+      z-index: -1;
+      pointer-events: none;
+      background: radial-gradient(110% 60% at 30% 50%, rgba(4, 6, 9, 0.95), rgba(4, 6, 9, 0.65) 45%, rgba(4, 6, 9, 0) 75%);
+    }
+
+    .sec-head {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: clamp(36px, 6vh, 68px);
+    }
+
+    .sec-head .k {
+      font-size: 11px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .sec-head .k b {
+      color: var(--cyan);
+    }
+
+    .sec-head .rule {
+      flex: 1;
+      height: 1px;
+      background: var(--line-soft);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: clamp(32px, 6vw, 96px);
+      align-items: center;
+    }
+
+    .stat-band {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 44px;
+      border-top: 1px solid var(--line-soft);
+      padding-top: 24px;
+    }
+
+    .stat-band b {
+      display: block;
+      font-size: clamp(24px, 2.5vw, 36px);
+      font-weight: 400;
+      color: var(--cyan);
+    }
+
+    .stat-band span {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+    }
+
+    /* Glass Terminal Cards */
+    .card-terminal {
+      background: rgba(8, 13, 20, 0.82);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 24px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8);
+    }
+
+    .term-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--line-soft);
+      padding-bottom: 10px;
+    }
+
+    .term-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .term-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .term-dot:nth-child(1) {
+      background: #ff5f56;
+    }
+
+    .term-dot:nth-child(2) {
+      background: #ffbd2e;
+    }
+
+    .term-dot:nth-child(3) {
+      background: #27c93f;
+    }
+
+    .term-body {
+      font-size: 12.5px;
+      line-height: 1.85;
+      color: #a0aec0;
+    }
+
+    .c-cyan {
+      color: var(--cyan);
+    }
+
+    .c-violet {
+      color: #d6bcfa;
+    }
+
+    .c-dim {
+      color: var(--muted);
+    }
+
+    /* Audit Timeline */
+    .audit-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .audit-item {
+      display: grid;
+      grid-template-columns: 84px 1fr 100px;
+      gap: 14px;
+      align-items: center;
+      padding: 16px 20px;
+      background: rgba(8, 13, 20, 0.65);
+      border: 1px solid var(--line-soft);
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.3s;
+    }
+
+    .audit-item:hover {
+      border-color: var(--cyan);
+    }
+
+    .badge {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .badge-admin {
+      background: rgba(0, 242, 254, 0.12);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+    }
+
+    .badge-crdt {
+      background: rgba(137, 44, 220, 0.16);
+      color: #d6bcfa;
+      border: 1px solid rgba(137, 44, 220, 0.3);
+    }
+
+    /* Footer */
+    .foot {
+      border-top: 1px solid var(--line-soft);
+      padding: 80px var(--pad) 40px;
+      background: #020306;
+    }
+
+    .foot-grid {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 48px;
+      margin-bottom: 60px;
+    }
+
+    .foot-col h4 {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .foot-col ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .foot-col li a {
+      font-size: 13px;
+      color: var(--bone-dim);
+      transition: color 0.3s;
+    }
+
+    .foot-col li a:hover {
+      color: var(--cyan);
+    }
+
+    .foot-bottom {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-top: 1px solid var(--line-soft);
+      padding-top: 24px;
+    }
+
+    /* Custom Cursor */
+    .cur-dot {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 28px;
+      height: 28px;
+      margin: -14px 0 0 -14px;
+      border: 1px solid rgba(0, 242, 254, 0.45);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 90;
+      opacity: 0;
+      transition: transform 0.08s linear;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .cur-dot {
+        opacity: 1;
+      }
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.35;
+        transform: scale(0.85);
+      }
+    }
+
+    @media (max-width: 960px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .pillars {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .foot-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .hero-wordmark {
+        bottom: 12%;
+        font-size: 22vw;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .pillars {
+        grid-template-columns: 1fr;
+      }
+
+      .foot-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .audit-item {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+    }
+  
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-socials {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .social-icon {
+      color: var(--bone-dim);
+      transition: color 0.3s, transform 0.3s;
+      display: block;
+    }
+
+    .social-icon:hover {
+      color: var(--cyan);
+      transform: translateY(-2px);
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <canvas id="gl" aria-hidden="true"></canvas>
+  <canvas id="grain" aria-hidden="true"></canvas>
+  <div id="vignette"></div>
+  <div class="cur-dot" id="cursor"></div>
+
+  <!-- ============================================================ preloader -->
+  <div id="pre">
+    <div class="pre-in">
+      <div class="pre-mark">
+        <svg viewBox="0 0 48 48" fill="none">
+          <polygon points="24,4 44,14 44,34 24,44 4,34 4,14" stroke="#00f2fe" stroke-width="1.8" />
+          <circle cx="24" cy="24" r="6" fill="#00f2fe" />
+        </svg>
+      </div>
+      <div class="mono" style="font-size:11.5px; letter-spacing:0.26em; color:var(--cyan)">INITIALIZING MONOREPO CLUSTER
+      </div>
+      <div class="pre-bar"><i id="pre-fill"></i></div>
+      <div class="pre-meta">
+        <span>Mounting 3D Vector Shaders</span><b><span id="pre-pct">0</span>%</b>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ nav -->
+  <header class="nav" id="nav">
+    <a class="brand" href="#hero">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="2">
+          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+          <polyline points="2 17 12 22 22 17" />
+          <polyline points="2 12 12 17 22 12" />
+        </svg>
+      </div>
+      <span>SYNC<i>FORGE</i></span>
+    </a>
+    <nav class="nav-links">
+      <a class="nav-link" href="#crdt">CRDT Engine</a>
+      <a class="nav-link" href="#hierarchy">Workspace Trees</a>
+      <a class="nav-link" href="#vault">The Audit Vault</a>
+      <a class="nav-link" href="#monorepo">Architecture</a>
+    </nav>
+    
+      <div class="nav-right">
+        <div class="nav-socials">
+          <a href="https://github.com/anshuldeewan/Sync_Forge" target="_blank" rel="noreferrer" class="social-icon" aria-label="GitHub">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+            </svg>
+          </a>
+          <a href="https://www.linkedin.com/in/anshul-deewan" target="_blank" rel="noreferrer" class="social-icon" aria-label="LinkedIn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+              <rect x="2" y="9" width="4" height="12"></rect>
+              <circle cx="4" cy="4" r="2"></circle>
+            </svg>
+          </a>
+        </div>
+        <a href="/login" class="nav-cta mono">Login to SyncForge</a>
+      </div>
+
+  </header>
+
+  <div class="page" id="top">
+
+    <!-- ============================================================ hero -->
+    <section class="hero" id="hero" data-cam="0">
+      <div class="hero-top">
+        <div class="eyebrow"><span class="dot"></span> Chapter 00 — Zero-Latency Threshold</div>
+        <h1 class="display h-hero">
+          Where engineering teams build in zero latency.
+        </h1>
+        <p class="hero-sub body-lg">
+          A unified command center for modern engineering and product teams. SyncForge combines the blazing speed of Linear with the infinite organizational depth of Notion. Write documents, manage projects, and collaborate in real-time without ever seeing a loading spinner or a merge conflict.
+        </p>
+        <div class="hero-actions">
+          <a href="/login" class="btn-primary">Enter Workspace (Login)</a>
+          <a href="#monorepo" class="btn-secondary mono">View Monorepo Specs</a>
+        </div>
+      </div>
+
+      <!-- Giant Horizon 3D Wordmark -->
+      <div class="hero-wordmark">SYNCFORGE</div>
+
+      <div class="hero-foot">
+        <div class="pillars">
+          <div class="pillar-card" onclick="jumpTo(1)">
+            <span class="mono num">01 / ENGINE</span>
+            <b>Yjs CRDTs</b>
+            <p>Conflict-free multi-cursor replication with zero central locking delay.</p>
+          </div>
+          <div class="pillar-card" onclick="jumpTo(2)">
+            <span class="mono num">02 / TOPOLOGY</span>
+            <b>Infinite Nesting</b>
+            <p>Recursive tree hierarchy supporting unbounded nested workspaces and docs.</p>
+          </div>
+          <div class="pillar-card" onclick="jumpTo(3)">
+            <span class="mono num">03 / SECURITY</span>
+            <b>RBAC & Vault</b>
+            <p>Granular role permissions with verifiable, tamper-evident audit trails.</p>
+          </div>
+          <div class="pillar-card" onclick="jumpTo(4)">
+            <span class="mono num">04 / MONOREPO</span>
+            <b>Turborepo Stack</b>
+            <p>Next.js 16, React 19, Tiptap, Prisma, PostgreSQL & native Three.js.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ chapter I -->
+    <section class="sec" id="crdt" data-cam="1">
+      <div class="sec-head">
+        <span class="k mono"><b>01</b> — CONCURRENCY PROTOCOL</span>
+        <span class="rule"></span>
+        <span class="k mono">Y.DOC STATE VECTOR</span>
+      </div>
+      <div class="grid-2">
+        <div>
+          <h2 class="display h-sec">Zero locks. Zero merge conflicts.</h2>
+          <p class="body-lg" style="margin:24px 0;">
+            Build together, seamlessly. Whether you're writing a product spec, taking meeting notes, or drafting code blocks, multiple team members can edit the exact same document simultaneously. Our high-performance sync engine ensures every keystroke and live cursor movement is instantly replicated across the globe with zero merge conflicts.
+          </p>
+          <div class="stat-band">
+            <div><b>&lt; 8ms</b><span>P99 Sync Latency</span></div>
+            <div><b>0%</b><span>Merge Failures</span></div>
+            <div><b>10k+</b><span>Concurrent Peers</span></div>
+          </div>
+        </div>
+        <div class="card-terminal mono">
+          <div class="term-header">
+            <div class="term-dots">
+              <div class="term-dot"></div>
+              <div class="term-dot"></div>
+              <div class="term-dot"></div>
+            </div>
+            <span class="c-dim text-[11px]">apps/ws/sync-engine.ts</span>
+          </div>
+          <div class="term-body">
+            <span class="c-dim">// Distributed CRDT State Vector</span><br>
+            <span class="c-cyan">import</span> * <span class="c-cyan">as</span> Y <span class="c-cyan">from</span> <span
+              style="color:#68d391;">'yjs'</span>;<br>
+            <span class="c-cyan">import</span> { WebsocketProvider } <span class="c-cyan">from</span> <span
+              style="color:#68d391;">'y-websocket'</span>;<br><br>
+            <span class="c-cyan">const</span> doc = <span class="c-cyan">new</span> Y.Doc();<br>
+            <span class="c-cyan">const</span> provider = <span class="c-cyan">new</span> WebsocketProvider(<br>
+            &nbsp;&nbsp;<span style="color:#68d391;">'wss://ws.syncforge.internal'</span>,<br>
+            &nbsp;&nbsp;<span style="color:#68d391;">'workspace-eng-core'</span>,<br>
+            &nbsp;&nbsp;doc<br>
+            );<br><br>
+            doc.<span class="c-violet">on</span>(<span style="color:#68d391;">'update'</span>, (update) =&gt; {<br>
+            &nbsp;&nbsp;<span class="c-violet">AuditVault.appendSignedVector</span>(update);<br>
+            &nbsp;&nbsp;<span class="c-cyan">BroadcastStateVector</span>(update);<br>
+            });
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ chapter II -->
+    <section class="sec" id="hierarchy" data-cam="2">
+      <div class="sec-head">
+        <span class="k mono"><b>02</b> — RECURSIVE DATA STRUCTURES</span>
+        <span class="rule"></span>
+        <span class="k mono">POSTGRESQL L-TREE</span>
+      </div>
+      <div class="grid-2">
+        <div class="card-terminal mono">
+          <div class="term-header">
+            <div class="term-dots">
+              <div class="term-dot"></div>
+              <div class="term-dot"></div>
+              <div class="term-dot"></div>
+            </div>
+            <span class="c-dim text-[11px]">WORKSPACE_TOPOLOGY</span>
+          </div>
+          <div class="term-body">
+            root: /engineering-core<br>
+            ├── /sprint-q3-2026<br>
+            │&nbsp;&nbsp;&nbsp;├── RFC-402-CRDT-Sync.md <span class="c-cyan">(active: 4 peers)</span><br>
+            │&nbsp;&nbsp;&nbsp;└── Kernel-Patch-Draft.ts<br>
+            └── /architecture-vault<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── Multi-Region-Failover.canvas<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;└── RBAC-Policies.json <span class="c-violet">[RESTRICTED]</span>
+          </div>
+        </div>
+        <div>
+          <h2 class="display h-sec">Infinite depth. Instant route traversal.</h2>
+          <p class="body-lg" style="margin:24px 0;">
+            Organize your entire company exactly how you think. Create an infinite nesting of workspaces, folders, and documents to perfectly match your team's mental model. From a small startup roadmap to a massive enterprise wiki, everything scales effortlessly.
+          </p>
+          <p class="body">
+            Built on top of heavily optimized data structures, your navigation remains lightning fast. Instantly search, drag-and-drop, and traverse thousands of nested documents without ever waiting on a slow page load.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ chapter III -->
+    <section class="sec" id="vault" data-cam="3">
+      <div class="sec-head">
+        <span class="k mono"><b>03</b> — CRYPTOGRAPHIC COMPLIANCE</span>
+        <span class="rule"></span>
+        <span class="k mono">AUDIT VAULT & RBAC</span>
+      </div>
+      <div class="grid-2">
+        <div>
+          <h2 class="display h-sec">Tamper-evident verification at every tier.</h2>
+          <p class="body-lg" style="margin:24px 0;">
+            Enterprise-grade RBAC controls dictate access on workspace, folder, and document bounds (Admin, Editor,
+            Viewer). Every authorization check, permission escalation, and document deletion is committed to the
+            append-only Audit Vault.
+          </p>
+          <div class="stat-band">
+            <div><b>AES-256</b><span>Rest Encryption</span></div>
+            <div><b>mTLS</b><span>Node Mesh</span></div>
+            <div><b>SOC2</b><span>Compliance Ready</span></div>
+          </div>
+        </div>
+        <div class="audit-list mono">
+          <div class="audit-item">
+            <span class="badge badge-admin">ACCESS</span>
+            <span>role:editor assigned to dev@syncforge</span>
+            <span class="c-dim">0.04ms ago</span>
+          </div>
+          <div class="audit-item">
+            <span class="badge badge-crdt">CRDT</span>
+            <span>vector patch #4409 applied to /RFC-402</span>
+            <span class="c-dim">1.2ms ago</span>
+          </div>
+          <div class="audit-item">
+            <span class="badge"
+              style="background:rgba(255,59,48,0.14); color:#ff8b80; border:1px solid rgba(255,59,48,0.3)">RBAC</span>
+            <span>unauthorized READ blocked on /vault/keys</span>
+            <span class="c-dim">8.4ms ago</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ chapter IV -->
+    <section class="sec" id="monorepo" data-cam="4"
+      style="text-align:center; min-height:85svh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+      <div class="eyebrow"><span class="dot"></span> Monorepo Stack</div>
+      <h2 class="display h-sec" style="font-size:clamp(36px, 5.5vw, 84px); margin-top:16px;">SyncForge Architecture</h2>
+      <p class="body-lg" style="max-width:52ch; margin:24px auto 36px;">
+        SyncForge is engineered from the ground up as a highly scalable monorepo. It features a Next.js 16 (React 19) frontend, a robust Express API, a dedicated WebSocket cluster for real-time collaboration, and a PostgreSQL database powered by Prisma.
+      </p>
+      <a class="btn-primary" href="#top">Return to Threshold</a>
+    </section>
+
+    <!-- ============================================================ footer -->
+    <footer class="foot">
+      <div class="foot-grid">
+        <div>
+          <div class="brand" style="margin-bottom: 16px;">
+            <div class="brand-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                <polyline points="2 17 12 22 22 17" />
+                <polyline points="2 12 12 17 22 12" />
+              </svg>
+            </div>
+            <span>SYNC<i>FORGE</i></span>
+          </div>
+          <p class="body" style="max-width: 320px;">
+            The ultimate real-time collaborative workspace. Engineered for speed, built for modern teams.
+          </p>
+        </div>
+                  <div class="foot-col">
+            <h4>Connect / Creator</h4>
+            <ul>
+              <li style="color: var(--bone-dim); font-size: 13px; margin-bottom: 6px; font-weight: 500;">Anshul Deewan</li>
+              <li><a href="https://github.com/anshuldeewan" target="_blank">GitHub Repository</a></li>
+              <li><a href="mailto:asharma800077@gmail.com">asharma800077@gmail.com</a></li>
+              <li><a href="tel:+919166697613">+91 9166697613</a></li>
+            </ul>
+          </div>
+      </div>
+      <div class="foot-bottom mono">
+        <span>© 2026 SyncForge Platform Inc.</span>
+        <span>Conflict-Free Replication Protocol</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Three.js Visual Engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      /* =====================================================================
+         SyncForge 3D Architectural Sanctuary & Scroll-Spline Camera Rig
+         ===================================================================== */
+      const canvas = document.getElementById('gl');
+      let renderer, scene, camera;
+      let floorMesh, monoliths = [], particleEmbers;
+
+      const CAM_WAYPOINTS = [
+        { p: [0.0, 3.8, 14.0], t: [0.0, 2.0, -18.0], fov: 38 }, // 0: Hero Horizon
+        { p: [7.2, 2.4, 6.0], t: [1.0, 1.2, -12.0], fov: 44 }, // 1: CRDT Chamber
+        { p: [-7.8, 3.2, 4.0], t: [-1.0, 1.4, -14.0], fov: 42 }, // 2: Hierarchy Slabs
+        { p: [0.0, 5.2, 0.0], t: [0.0, 0.8, -24.0], fov: 40 }, // 3: Audit Vault Room
+        { p: [0.0, 2.2, 8.0], t: [0.0, 1.5, -16.0], fov: 36 }  // 4: Closing Architecture
+      ];
+
+      const RIG = { prog: 0, smooth: 0, mx: 0, my: 0, tmx: 0, tmy: 0 };
+      let curveP, curveT;
+      const _p = new THREE.Vector3(), _t = new THREE.Vector3();
+
+      function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+      function lerp(a, b, t) { return a + (b - a) * t; }
+      function damp(cur, to, rate, dt) { return lerp(cur, to, 1 - Math.exp(-rate * dt)); }
+
+      function initGL() {
+        renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.8));
+        renderer.setSize(innerWidth, innerHeight, false);
+        renderer.setClearColor(0x040609, 1);
+
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x040609, 0.028);
+
+        camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.2, 180);
+        scene.add(camera);
+
+        // Volumetric Lights
+        scene.add(new THREE.AmbientLight(0x091420, 2.0));
+        const keyCyan = new THREE.DirectionalLight(0x00f2fe, 1.6);
+        keyCyan.position.set(4, 20, 8); scene.add(keyCyan);
+
+        const purpleRim = new THREE.PointLight(0x892cdc, 5.0, 45, 2);
+        purpleRim.position.set(-14, 6, -16); scene.add(purpleRim);
+
+        const hallLight = new THREE.PointLight(0x00f2fe, 3.5, 25, 2);
+        hallLight.position.set(0, 3, -18); scene.add(hallLight);
+      }
+
+      function buildSanctuaryWorld() {
+        // Reflective Wet Slate Cyber Floor
+        const floorGeo = new THREE.PlaneGeometry(160, 160);
+        const floorMat = new THREE.MeshStandardMaterial({
+          color: 0x090e15, roughness: 0.15, metalness: 0.8
+        });
+        floorMesh = new THREE.Mesh(floorGeo, floorMat);
+        floorMesh.rotation.x = -Math.PI / 2;
+        floorMesh.position.y = -2.2;
+        scene.add(floorMesh);
+
+        // Architectural Monolith Pillars (Forming the corridor)
+        const pillarGeo = new THREE.BoxGeometry(1.6, 12, 1.6);
+        const pillarMat = new THREE.MeshStandardMaterial({
+          color: 0x080c12, roughness: 0.2, metalness: 0.9
+        });
+        const edgeMat = new THREE.LineBasicMaterial({ color: 0x00f2fe, opacity: 0.35, transparent: true });
+
+        for (let i = 0; i < 12; i++) {
+          [-8, 8].forEach(x => {
+            const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+            const z = -i * 5.5 + 4;
+            pillar.position.set(x, 3.8, z);
+
+            const edges = new THREE.LineSegments(new THREE.EdgesGeometry(pillarGeo), edgeMat);
+            pillar.add(edges);
+            scene.add(pillar);
+            monoliths.push(pillar);
+          });
+        }
+
+        // Floating Cyber Slabs (Representing CRDT nodes)
+        const slabGeo = new THREE.BoxGeometry(4.2, 0.12, 2.4);
+        const slabMat = new THREE.MeshStandardMaterial({ color: 0x0d1520, roughness: 0.1, metalness: 0.95 });
+        const slabLineMat = new THREE.LineBasicMaterial({ color: 0x00f2fe, opacity: 0.6, transparent: true });
+
+        for (let k = 0; k < 6; k++) {
+          const slab = new THREE.Mesh(slabGeo, slabMat);
+          slab.position.set((Math.random() - 0.5) * 12, -0.5 + k * 1.2, -6 - k * 5);
+          slab.rotation.y = (Math.random() - 0.5) * 0.5;
+          slab.add(new THREE.LineSegments(new THREE.EdgesGeometry(slabGeo), slabLineMat));
+          scene.add(slab);
+        }
+
+        // Floating Embers Particle Mesh
+        const pCount = 380;
+        const pGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(pCount * 3);
+        for (let i = 0; i < pCount * 3; i += 3) {
+          pPos[i] = (Math.random() - 0.5) * 45;
+          pPos[i + 1] = Math.random() * 14;
+          pPos[i + 2] = -35 + Math.random() * 50;
+        }
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        const pMat = new THREE.PointsMaterial({
+          color: 0x00f2fe, size: 0.14, transparent: true, blending: THREE.AdditiveBlending, opacity: 0.6
+        });
+        particleEmbers = new THREE.Points(pGeo, pMat);
+        scene.add(particleEmbers);
+      }
+
+      function buildSplineRig() {
+        curveP = new THREE.CatmullRomCurve3(CAM_WAYPOINTS.map(c => new THREE.Vector3(c.p[0], c.p[1], c.p[2])), false, 'catmullrom', 0.42);
+        curveT = new THREE.CatmullRomCurve3(CAM_WAYPOINTS.map(c => new THREE.Vector3(c.t[0], c.t[1], c.t[2])), false, 'catmullrom', 0.42);
+      }
+
+      function updateCamera(dt) {
+        const N = CAM_WAYPOINTS.length - 1;
+        const u = clamp(RIG.smooth / N, 0, 1);
+        curveP.getPoint(u, _p);
+        curveT.getPoint(u, _t);
+
+        const i = clamp(Math.floor(RIG.smooth), 0, N - 1);
+        const f = clamp(RIG.smooth - i, 0, 1);
+        const fov = lerp(CAM_WAYPOINTS[i].fov, CAM_WAYPOINTS[Math.min(i + 1, N)].fov, f);
+
+        _p.x += RIG.mx * 0.65;
+        _p.y += RIG.my * 0.35;
+
+        camera.position.copy(_p);
+        camera.lookAt(_t);
+        if (Math.abs(camera.fov - fov) > 1e-4) {
+          camera.fov = fov;
+          camera.updateProjectionMatrix();
+        }
+      }
+
+      let maxScroll = 1;
+      function measure() {
+        maxScroll = Math.max(1, document.documentElement.scrollHeight - innerHeight);
+      }
+
+      window.jumpTo = function (i) {
+        window.scrollTo({ top: (i / (CAM_WAYPOINTS.length - 1)) * maxScroll, behavior: 'smooth' });
+      };
+
+      function wireUI() {
+        const nav = document.getElementById('nav');
+        window.addEventListener('scroll', () => {
+          const y = window.scrollY;
+          nav.classList.toggle('stuck', y > 40);
+          RIG.prog = (y / maxScroll) * (CAM_WAYPOINTS.length - 1);
+        }, { passive: true });
+
+        const cur = document.getElementById('cursor');
+        window.addEventListener('pointermove', e => {
+          RIG.tmx = (e.clientX / innerWidth) * 2 - 1;
+          RIG.tmy = -((e.clientY / innerHeight) * 2 - 1);
+          if (cur) cur.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+        }, { passive: true });
+      }
+
+      function makeProceduralGrain() {
+        const c = document.getElementById('grain');
+        c.width = 180; c.height = 180;
+        const x = c.getContext('2d');
+        const im = x.createImageData(180, 180);
+        for (let i = 0; i < 180 * 180 * 4; i += 4) {
+          const v = (Math.random() * 180) | 0;
+          im.data[i] = im.data[i + 1] = im.data[i + 2] = v;
+          im.data[i + 3] = 255;
+        }
+        x.putImageData(im, 0, 0);
+        c.style.backgroundImage = `url(${c.toDataURL()})`;
+      }
+
+      let lastTime = performance.now();
+      let clock = 0;
+
+      function frame(now) {
+        const dt = Math.min((now - lastTime) / 1000, 0.05);
+        lastTime = now;
+        clock += dt;
+
+        RIG.mx = damp(RIG.mx, RIG.tmx, 3.0, dt);
+        RIG.my = damp(RIG.my, RIG.tmy, 3.0, dt);
+        RIG.smooth = damp(RIG.smooth, RIG.prog, 4.5, dt);
+
+        updateCamera(dt);
+
+        // Float embers
+        if (particleEmbers) {
+          const pos = particleEmbers.geometry.attributes.position;
+          for (let i = 1; i < pos.count * 3; i += 3) {
+            pos.array[i] += dt * 0.75;
+            if (pos.array[i] > 14) pos.array[i] = 0;
+          }
+          pos.needsUpdate = true;
+        }
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(frame);
+      }
+
+      function boot() {
+        makeProceduralGrain();
+        initGL();
+        buildSplineRig();
+        buildSanctuaryWorld();
+        wireUI();
+        measure();
+
+        // Preloader step
+        let p = 0;
+        const fill = document.getElementById('pre-fill'), pct = document.getElementById('pre-pct'), pre = document.getElementById('pre');
+        const timer = setInterval(() => {
+          p += Math.floor(Math.random() * 20) + 12;
+          if (p >= 100) {
+            p = 100;
+            clearInterval(timer);
+            fill.style.right = '0%';
+            pct.textContent = '100';
+            setTimeout(() => {
+              pre.classList.add('done');
+              document.body.classList.remove('is-locked');
+            }, 250);
+          } else {
+            fill.style.right = (100 - p) + '%';
+            pct.textContent = String(p);
+          }
+        }, 45);
+
+        window.addEventListener('resize', () => {
+          renderer.setSize(innerWidth, innerHeight, false);
+          camera.aspect = innerWidth / innerHeight;
+          camera.updateProjectionMatrix();
+          measure();
+        });
+
+        requestAnimationFrame(frame);
+      }
+
+      document.body.classList.add('is-locked');
+      if (document.readyState === 'complete') boot();
+      else addEventListener('DOMContentLoaded', boot);
+
+    })();
+  </script>
+</body>
+
+</html>

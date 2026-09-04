@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { UserMenu } from './UserMenu';
 import { cn } from '@/lib/utils';
@@ -13,12 +13,15 @@ import {
   FileText,
   Settings,
   Shield,
-  History
+  History,
+  Users,
+  Building
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
-export function Sidebar() {
+export function SidebarContent() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { activeWorkspace, myRole } = useWorkspace();
   const isPlatformAdmin = false; // TODO: Connect to real admin claim check
 
@@ -37,7 +40,14 @@ export function Sidebar() {
     { name: 'Audit Logs', href: `/workspaces/${wsId}/settings/audit`, icon: History },
   ];
 
-  const navToUse = isWorkspaceContext ? workspaceNav : globalNav;
+  const adminNav = [
+    { name: 'Overview', href: '/admin?tab=stats', icon: Shield },
+    { name: 'Users', href: '/admin?tab=users', icon: Users },
+    { name: 'Workspaces', href: '/admin?tab=workspaces', icon: Building },
+    { name: 'Global Audit', href: '/admin?tab=audit', icon: History },
+  ];
+
+  const navToUse = pathname.startsWith('/admin') ? adminNav : isWorkspaceContext ? workspaceNav : globalNav;
 
   return (
     <aside className="hidden w-64 flex-col border-r bg-card text-card-foreground md:flex h-full">
@@ -58,7 +68,14 @@ export function Sidebar() {
         <nav className="flex flex-1 flex-col gap-1">
           {navToUse.map((item) => {
             if (!item.href.includes('undefined')) {
-              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              // Fix active state logic for exact vs startWith to handle query params in admin
+              const itemTabMatch = item.href.match(/tab=([^&]+)/);
+              const itemTab = itemTabMatch ? itemTabMatch[1] : null;
+              const currentTab = searchParams?.get('tab') || 'stats';
+              
+              const isActive = pathname.startsWith('/admin') 
+                ? (itemTab === currentTab)
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;
               return (
                 <Link
@@ -109,5 +126,13 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <React.Suspense fallback={<aside className="hidden w-64 flex-col border-r bg-background md:flex p-4">Loading navigation...</aside>}>
+      <SidebarContent />
+    </React.Suspense>
   );
 }
