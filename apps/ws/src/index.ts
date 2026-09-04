@@ -16,6 +16,10 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server });
 
+server.on('upgrade', (req, socket, head) => {
+  console.log('WS Upgrade request:', req.url);
+});
+
 // Keep track of which pages we have active Redis subscriptions for
 const activeSubscriptions = new Map<string, () => void>();
 
@@ -37,6 +41,39 @@ setPersistence({
         if (snapshot) {
           Y.applyUpdate(ydoc, new Uint8Array(snapshot.state));
           console.log(`Loaded snapshot for resource ${id}`);
+        } else {
+          console.log(`No snapshot for resource ${id}, checking if file asset exists...`);
+          const fileAsset = await prisma.fileAsset.findFirst({
+            where: { resourceId: id },
+            orderBy: { createdAt: 'desc' }
+          });
+          if (fileAsset) {
+            const fs = await import('fs/promises');
+            const path = await import('path');
+            const baseDir = path.resolve(process.env.FILE_STORAGE_ROOT || '../api/storage');
+            const safeKey = path.normalize(fileAsset.path).replace(/^(\.\.(\/|\\|$))+/, '');
+            const absolutePath = path.resolve(baseDir, safeKey);
+            
+            if (absolutePath.startsWith(baseDir)) {
+              try {
+                const buffer = await fs.readFile(absolutePath);
+                const text = ydoc.getText('monaco');
+                text.insert(0, buffer.toString('utf8'));
+                console.log(`Initialized Y.Doc from file asset for resource ${id}`);
+                
+                // Immediately save the snapshot
+                const state = Buffer.from(Y.encodeStateAsUpdate(ydoc));
+                await prisma.fileSnapshot.create({
+                  data: {
+                    resourceId: id,
+                    state
+                  }
+                });
+              } catch (fsErr) {
+                console.error(`Failed to read file asset for resource ${id}:`, fsErr);
+              }
+            }
+          }
         }
       } else {
         const snapshot = await prisma.documentSnapshot.findFirst({

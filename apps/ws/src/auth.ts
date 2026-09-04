@@ -16,9 +16,10 @@ export interface CollaborationTokenPayload {
 }
 
 export function verifyCollaborationToken(req: any): CollaborationTokenPayload | null {
+  let token: string | undefined;
   try {
     const url = parse(req.url, true);
-    const token = url.query.token as string;
+    token = url.query.token as string;
 
     if (!token) {
       return null;
@@ -32,6 +33,7 @@ export function verifyCollaborationToken(req: any): CollaborationTokenPayload | 
 
     return decoded;
   } catch (error) {
+    console.error('Token verification failed:', error, 'Secret used:', JWT_SECRET.substring(0, 5) + '...', 'Token:', token?.substring(0, 10));
     // Return null if signature is invalid, token expired, etc.
     return null;
   }

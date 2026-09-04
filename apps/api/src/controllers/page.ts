@@ -188,7 +188,7 @@ export const getCollaborationToken = async (req: AuthorizedRequest, res: Respons
         purpose: 'collaboration'
       },
       JWT_SECRET,
-      { expiresIn: '5m' } // Short-lived token
+      { expiresIn: '12h' } // Allow longer sessions for reconnects
     );
 
     return res.json({ token, role });
